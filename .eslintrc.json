@@ -1,0 +1,51 @@
+{
+  "extends": [
+    "@typescript-eslint/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.json",
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "plugins": [
+    "@typescript-eslint/recommended"
+  ],
+  "rules": {
+    "no-unused-vars": "error",
+    "no-console": "warn",
+    "prefer-const": "error",
+    "no-var-requires": "error",
+    "eqeqeqeq": "error",
+    "no-triple-spaces": "error",
+    "curly": ["error", "warn"],
+    "brace-style": ["error", "warn"],
+    "indent": ["error", "warn"],
+    "quotes": ["error", "warn"],
+    "semi": ["error", "warn"],
+    "no-duplicate-imports": "error",
+    "no-explicit-any": "error",
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/prefer-const": "error",
+    "@typescript-eslint/no-unused-vars": "error",
+    "@typescript-eslint/no-var-requires": "error",
+    "@typescript-eslint/eqeqeqeq": "error",
+    "@typescript-eslint/no-triple-spaces": "error",
+    "@typescript-eslint/curly": "error",
+    "@typescript-eslint/semi": "error",
+    "@typescript-eslint/no-duplicate-imports": "error",
+    "@typescript-eslint/prefer-const": "error",
+    "@typescript-eslint/no-unused-vars": "error"
+  ],
+  "env": {
+    "browser": true,
+    "es2022": true,
+    "node": true
+  },
+  "ignorePatterns": [
+    "dist/**/*",
+    "node_modules/**/*",
+    "coverage/**/*",
+    "*.js"
+  ]
+}
