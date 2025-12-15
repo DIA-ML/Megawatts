@@ -16,26 +16,6 @@ enum BotIntent {
   Optimize = 'optimize'
 }
 
-// Basic logger class
-class Logger {
-  private context: string = 'BOT';
-
-  info(message: string): void {
-    console.log(`[${this.context}] INFO: ${message}`);
-  }
-
-  error(message: string, error?: Error): void {
-    console.error(`[${this.context}] ERROR: ${message}`);
-    if (error) {
-      console.error(`[${this.context}] ERROR: ${error.message}`);
-      console.error(error.stack);
-    }
-  }
-
-  warn(message: string): void {
-    console.warn(`[${this.context}] WARN: ${message}`);
-  }
-}
 
 // Basic configuration class
 class BotConfig {
@@ -63,7 +43,7 @@ class BotConfig {
 class HealthServer {
   private app: express.Application;
   private server: any;
-  private logger: Logger;
+  private logger: UtilsLogger;
   private healthManager: HealthManager;
   private port: number;
   private host: string;
@@ -71,7 +51,7 @@ class HealthServer {
   constructor(healthManager: HealthManager, config: BotConfig) {
     this.app = express();
     this.healthManager = healthManager;
-    this.logger = new UtilsLogger('HealthServer');
+    this.logger = new UtilsLogger();
     this.port = parseInt(config.get('HTTP_PORT'));
     this.host = config.get('HTTP_HOST');
     
@@ -168,7 +148,7 @@ class HealthServer {
 // Core bot class with self-editing capabilities
 class SelfEditingDiscordBot {
   private client!: Client;
-  private logger: Logger;
+  private logger: UtilsLogger;
   private config: BotConfig;
   private healthManager: HealthManager;
   private healthServer: HealthServer;
@@ -176,10 +156,10 @@ class SelfEditingDiscordBot {
 
   constructor(
     private token: string,
-    logger?: Logger,
+    logger?: UtilsLogger,
     config?: BotConfig
   ) {
-    this.logger = logger || new Logger();
+    this.logger = logger || new UtilsLogger();
     this.config = config || new BotConfig();
     this.healthManager = new HealthManager();
     this.healthServer = new HealthServer(this.healthManager, this.config);
@@ -407,7 +387,7 @@ class SelfEditingDiscordBot {
 
 // Bot initialization and startup
 async function main() {
-  const logger = new Logger();
+  const logger = new UtilsLogger();
   const config = new BotConfig();
   
   const token = config.get('DISCORD_TOKEN');

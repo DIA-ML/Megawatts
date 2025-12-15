@@ -1,6 +1,6 @@
 /**
  * Health Check Module
- * 
+ *
  * Provides comprehensive health monitoring and status checking capabilities
  * for the Discord bot including system diagnostics, API monitoring,
  * and health check endpoints.
@@ -23,7 +23,7 @@ export type {
 export { HealthCheckService } from './service';
 export { HealthOrchestrator } from './orchestrator';
 export { HealthEndpoints } from './endpoints';
-export { HealthMiddleware } from './middleware';
+export { HealthMiddleware, Request, Response } from './middleware';
 export { defaultHealthConfig, healthCheckThresholds, healthCheckTimeouts } from './config';
 
 import { HealthOrchestrator } from './orchestrator';

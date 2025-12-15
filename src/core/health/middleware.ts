@@ -2,7 +2,7 @@ import { HealthOrchestrator } from './orchestrator';
 import { Logger } from '../../utils/logger';
 
 // Define basic interfaces for compatibility
-interface Request {
+export interface Request {
   method: string;
   url: string;
   headers: Record<string, string>;
@@ -10,13 +10,13 @@ interface Request {
   timestamp?: number;
 }
 
-interface Response {
+export interface Response {
   statusCode?: number;
   getHeader(name: string): string | undefined;
   end(...args: any[]): void;
 }
 
-interface NextFunction {
+export interface NextFunction {
   (error?: any): void;
 }
 
