@@ -57,15 +57,15 @@ export enum ErrorAction {
 }
 
 export interface ErrorContext {
-  userId?: string;
-  guildId?: string;
-  channelId?: string;
-  command?: string;
-  interaction?: string;
-  requestId?: string;
+  userId?: string | undefined;
+  guildId?: string | undefined;
+  channelId?: string | undefined;
+  command?: string | undefined;
+  interaction?: string | undefined;
+  requestId?: string | undefined;
   timestamp: Date;
-  stackTrace?: string;
-  metadata?: Record<string, any>;
+  stackTrace?: string | undefined;
+  metadata?: Record<string, any> | undefined;
 }
 
 export interface ErrorClassification {

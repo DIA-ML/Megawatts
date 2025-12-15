@@ -77,7 +77,10 @@
     "qdrant-client": "^1.5.0",
     "prom-client": "^14.0.0",
     "prometheus-client": "^14.0.0",
-    "express-winston": "^4.0.0"
+    "express-winston": "^4.0.0",
+    "node-cron": "^3.0.2",
+    "lodash": "^4.17.21",
+    "@types/lodash": "^4.14.195"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

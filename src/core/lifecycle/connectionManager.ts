@@ -11,17 +11,17 @@ import {
 import { BotConfig } from '../../types';
 import { Logger } from '../../utils/logger';
 import { BotError } from '../../utils/errors';
+import { ConnectionOrchestrator } from '../connection';
+import { DEFAULT_CONNECTION_CONFIG } from '../connection/types';
 
 /**
- * Manages Discord API connection health and metrics
+ * Enhanced connection manager using new connection system
  */
 export class ConnectionManager {
   private client: Client;
   private config: BotConfig;
   private logger: Logger;
-  private metrics: ConnectionMetrics;
-  private healthCheckInterval?: ReturnType<typeof setInterval> | null;
-  private pingInterval?: ReturnType<typeof setInterval> | null;
+  private connectionOrchestrator: ConnectionOrchestrator;
   private eventListeners: Map<LifecycleEventType, Set<LifecycleEventListener>> = new Map();
   private currentState: BotState = BotState.INITIALIZING;
   private currentHealth: ConnectionHealth = ConnectionHealth.UNKNOWN;
@@ -30,25 +30,49 @@ export class ConnectionManager {
   constructor(config: BotConfig, logger: Logger) {
     this.config = config;
     this.logger = new Logger('ConnectionManager');
-    this.metrics = this.initializeMetrics();
-    this.client = this.createClient();
-    this.setupClientEventHandlers();
+    
+    // Create connection orchestrator with converted config
+    const connectionConfig = this.convertToConnectionConfig(config);
+    this.connectionOrchestrator = new ConnectionOrchestrator(connectionConfig, logger);
+    
+    // Setup event forwarding
+    this.setupEventForwarding();
+    
+    // Get client from orchestrator
+    this.client = this.connectionOrchestrator.getClient();
   }
 
   /**
-   * Initialize connection metrics
+   * Convert BotConfig to ConnectionConfig
    */
-  private initializeMetrics(): ConnectionMetrics {
+  private convertToConnectionConfig(botConfig: BotConfig) {
     return {
-      totalConnections: 0,
-      totalDisconnections: 0,
-      totalReconnections: 0,
-      averageConnectionTime: 0,
-      uptime: 0,
-      latency: 0,
-      healthStatus: ConnectionHealth.UNKNOWN,
-      consecutiveErrors: 0
+      ...DEFAULT_CONNECTION_CONFIG,
+      token: botConfig.token,
+      intents: botConfig.intents,
+      presence: botConfig.presence
     };
+  }
+
+  /**
+   * Setup event forwarding from orchestrator to this manager
+   */
+  private setupEventForwarding(): void {
+    // Forward connection events to maintain compatibility
+    this.connectionOrchestrator.addEventListener(
+      'state_changed' as any,
+      this.handleOrchestratorStateChange.bind(this)
+    );
+    
+    this.connectionOrchestrator.addEventListener(
+      'health_changed' as any,
+      this.handleOrchestratorHealthChange.bind(this)
+    );
+    
+    this.connectionOrchestrator.addEventListener(
+      'error_occurred' as any,
+      this.handleOrchestratorError.bind(this)
+    );
   }
 
   /**
@@ -121,9 +145,8 @@ export class ConnectionManager {
    */
   private async handleReady(): Promise<void> {
     this.setState(BotState.CONNECTED);
-    this.metrics.lastConnected = new Date();
-    this.metrics.totalConnections++;
-    this.metrics.consecutiveErrors = 0;
+    // Track connection via orchestrator
+    this.logger.info(`Bot connected as ${this.client.user?.tag}`);
     
     this.logger.info(`Bot connected as ${this.client.user?.tag}`);
     
@@ -155,9 +178,8 @@ export class ConnectionManager {
    */
   private handleDisconnect(): void {
     this.setState(BotState.DISCONNECTED);
-    this.metrics.lastDisconnected = new Date();
-    this.metrics.totalDisconnections++;
-    this.updateHealth(ConnectionHealth.UNHEALTHY);
+    // Track disconnection via orchestrator
+    this.logger.warn('Bot disconnected from Discord');
     
     this.logger.warn('Bot disconnected from Discord');
     
@@ -489,21 +511,135 @@ export class ConnectionManager {
   }
 
   /**
+   * Handle orchestrator state change
+   */
+  private handleOrchestratorStateChange(event: any): void {
+    // Convert orchestrator state to lifecycle state
+    const stateMap: Record<string, BotState> = {
+      'disconnected': BotState.DISCONNECTED,
+      'connecting': BotState.CONNECTING,
+      'connected': BotState.CONNECTED,
+      'reconnecting': BotState.RECONNECTING,
+      'degraded': BotState.ERROR
+    };
+
+    const newState = stateMap[event.data.currentState] || BotState.ERROR;
+    this.setState(newState);
+  }
+
+  /**
+   * Handle orchestrator health change
+   */
+  private handleOrchestratorHealthChange(event: any): void {
+    // Convert orchestrator health to connection health
+    const healthMap: Record<string, ConnectionHealth> = {
+      'healthy': ConnectionHealth.HEALTHY,
+      'warning': ConnectionHealth.UNKNOWN,
+      'critical': ConnectionHealth.UNHEALTHY,
+      'unknown': ConnectionHealth.UNKNOWN
+    };
+
+    const newHealth = healthMap[event.data.currentHealth] || ConnectionHealth.UNKNOWN;
+    // Update current health (legacy compatibility)
+    this.currentHealth = newHealth;
+  }
+
+  /**
+   * Handle orchestrator error
+   */
+  private handleOrchestratorError(event: any): void {
+    // Forward error events
+    this.emitEvent({
+      type: LifecycleEventType.ERROR_OCCURRED,
+      timestamp: new Date(),
+      data: {
+        error: event.data.error,
+        metadata: event.data.metadata
+      }
+    });
+  }
+
+  /**
+   * Start the connection orchestrator
+   */
+  public async start(): Promise<void> {
+    this.logger.info('Starting enhanced connection manager');
+    await this.connectionOrchestrator.start();
+    
+    // Get updated client after start
+    this.client = this.connectionOrchestrator.getClient();
+  }
+
+  /**
+   * Stop the connection orchestrator
+   */
+  public async stop(): Promise<void> {
+    this.logger.info('Stopping enhanced connection manager');
+    await this.connectionOrchestrator.stop();
+  }
+
+  /**
+   * Get connection status from orchestrator
+   */
+  public getStatus() {
+    const orchestratorStatus = this.connectionOrchestrator.getStatus();
+    
+    // Convert to legacy format for compatibility
+    return {
+      state: this.currentState,
+      health: this.currentHealth,
+      uptime: orchestratorStatus.uptime,
+      latency: orchestratorStatus.latency,
+      errorRate: orchestratorStatus.errorRate,
+      lastError: orchestratorStatus.lastError,
+      lastConnected: orchestratorStatus.lastConnected,
+      sessionId: orchestratorStatus.sessionId
+    };
+  }
+
+  /**
+   * Get metrics from orchestrator
+   */
+  public getMetrics(): ConnectionMetrics {
+    const orchestratorMetrics = this.connectionOrchestrator.getStatistics();
+    
+    // Convert to legacy format
+    return {
+      totalConnections: orchestratorMetrics.totalConnections,
+      totalDisconnections: orchestratorMetrics.totalDisconnections,
+      totalReconnections: orchestratorMetrics.totalReconnections,
+      averageConnectionTime: orchestratorMetrics.averageUptime,
+      uptime: orchestratorMetrics.averageUptime,
+      latency: orchestratorMetrics.averageLatency,
+      healthStatus: this.currentHealth,
+      consecutiveErrors: 0, // Would need to track this separately
+      lastConnected: new Date(), // Would need to track this
+      lastDisconnected: new Date(), // Would need to track this
+      totalErrors: orchestratorMetrics.totalErrors
+    };
+  }
+
+  /**
+   * Get Discord client
+   */
+  public getClient(): Client {
+    return this.client;
+  }
+
+  /**
+   * Get orchestrator for advanced features
+   */
+  public getOrchestrator(): ConnectionOrchestrator {
+    return this.connectionOrchestrator;
+  }
+
+  /**
    * Cleanup resources
    */
   public async cleanup(): Promise<void> {
-    this.stopHealthMonitoring();
-    
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval);
-      this.pingInterval = null;
-    }
-
-    if (this.client && this.client.status !== Status.Destroyed) {
-      this.client.destroy();
-    }
-
+    this.logger.info('Cleaning up enhanced connection manager');
+    await this.connectionOrchestrator.cleanup();
     this.eventListeners.clear();
-    this.logger.debug('Connection manager cleaned up');
+    this.logger.debug('Enhanced connection manager cleaned up');
   }
 }

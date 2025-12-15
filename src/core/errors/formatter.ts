@@ -309,7 +309,7 @@ export class ErrorMessageFormatter {
    * Get suggested actions for self-editing engine
    */
   private getSuggestedActions(classification: ErrorClassification): string[] {
-    const actionSuggestions = {
+    const actionSuggestions: Record<ErrorCategory, string[]> = {
       [ErrorCategory.RATE_LIMIT]: [
         'Implement rate limiting at the application level',
         'Add exponential backoff for retries',
@@ -344,6 +344,71 @@ export class ErrorMessageFormatter {
         'Implement database connection pooling',
         'Add database health monitoring',
         'Improve query optimization'
+      ],
+      [ErrorCategory.DISCORD_API]: [
+        'Review Discord API implementation',
+        'Add better error handling for API responses',
+        'Implement API rate limiting'
+      ],
+      [ErrorCategory.CONNECTION]: [
+        'Implement connection retry logic',
+        'Add connection health monitoring',
+        'Improve connection pooling'
+      ],
+      [ErrorCategory.COMMAND]: [
+        'Review command implementation',
+        'Add input validation',
+        'Improve error handling for commands'
+      ],
+      [ErrorCategory.INTERACTION]: [
+        'Review interaction handling',
+        'Add interaction validation',
+        'Improve error responses for interactions'
+      ],
+      [ErrorCategory.MESSAGE]: [
+        'Review message processing',
+        'Add message validation',
+        'Improve error handling for messages'
+      ],
+      [ErrorCategory.SYSTEM]: [
+        'Review system configuration',
+        'Add system health monitoring',
+        'Improve overall error handling'
+      ],
+      [ErrorCategory.CPU]: [
+        'Optimize CPU-intensive operations',
+        'Add CPU usage monitoring',
+        'Implement load balancing'
+      ],
+      [ErrorCategory.STORAGE]: [
+        'Review storage implementation',
+        'Add storage health monitoring',
+        'Improve file handling'
+      ],
+      [ErrorCategory.CONFIGURATION]: [
+        'Review configuration files',
+        'Add configuration validation',
+        'Improve configuration error messages'
+      ],
+      [ErrorCategory.VALIDATION]: [
+        'Review validation logic',
+        'Add more specific validation rules',
+        'Improve validation error messages'
+      ],
+      [ErrorCategory.SELF_EDITING]: [
+        'Review self-editing implementation',
+        'Add safety checks for self-modifications',
+        'Improve self-editing error handling'
+      ],
+      [ErrorCategory.ADAPTATION]: [
+        'Review adaptation logic',
+        'Add adaptation safeguards',
+        'Improve adaptation error handling'
+      ],
+      [ErrorCategory.UNKNOWN]: [
+        'Review error logs for more details',
+        'Consider adding more specific error handling',
+        'Implement monitoring for this error type'
       ]
     };
 

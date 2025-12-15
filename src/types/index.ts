@@ -1,5 +1,8 @@
 // Core type definitions for self-editing Discord bot
 
+// Re-export error types
+export * from '../core/errors/types';
+
 export interface BotConfig {
   token: string;
   clientId: string;
