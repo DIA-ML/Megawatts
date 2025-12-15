@@ -86,9 +86,9 @@ export class OpenAIProvider extends BaseAIProvider {
       name: 'OpenAI',
       models: this.getAvailableModels(),
       capabilities: [
-        { type: 'text', enabled: true, confidence: 0.95 },
-        { type: 'function_calling', enabled: true, confidence: 0.90 },
-        { type: 'code_generation', enabled: true, confidence: 0.85 }
+        { type: 'text', supported: true, confidence: 0.95 },
+        { type: 'function_calling', supported: true, confidence: 0.90 },
+        { type: 'code_generation', supported: true, confidence: 0.85 }
       ],
       rateLimits: {
         requestsPerMinute: 3500,
@@ -98,7 +98,13 @@ export class OpenAIProvider extends BaseAIProvider {
       },
       priority: 1,
       isAvailable: true,
-      config: this.config
+      config: {
+        apiKey: this.config.apiKey,
+        endpoint: this.config.endpoint,
+        timeout: this.config.timeout,
+        retries: this.config.retries,
+        customHeaders: this.config.customHeaders
+      }
     };
   }
 
@@ -288,8 +294,8 @@ export class AnthropicProvider extends BaseAIProvider {
       name: 'Anthropic',
       models: this.getAvailableModels(),
       capabilities: [
-        { type: 'text', enabled: true, confidence: 0.95 },
-        { type: 'function_calling', enabled: true, confidence: 0.85 }
+        { type: 'text', supported: true, confidence: 0.95 },
+        { type: 'function_calling', supported: true, confidence: 0.85 }
       ],
       rateLimits: {
         requestsPerMinute: 1000,
@@ -299,7 +305,13 @@ export class AnthropicProvider extends BaseAIProvider {
       },
       priority: 2,
       isAvailable: true,
-      config: this.config
+      config: {
+        apiKey: this.config.apiKey,
+        endpoint: this.config.endpoint,
+        timeout: this.config.timeout,
+        retries: this.config.retries,
+        customHeaders: this.config.customHeaders
+      }
     };
   }
 
@@ -513,8 +525,8 @@ export class LocalModelProvider extends BaseAIProvider {
       name: 'Local Models',
       models: this.getAvailableModels(),
       capabilities: [
-        { type: 'text', enabled: true, confidence: 0.80 },
-        { type: 'function_calling', enabled: true, confidence: 0.70 }
+        { type: 'text', supported: true, confidence: 0.80 },
+        { type: 'function_calling', supported: true, confidence: 0.70 }
       ],
       rateLimits: {
         requestsPerMinute: 60,
@@ -524,7 +536,12 @@ export class LocalModelProvider extends BaseAIProvider {
       },
       priority: 3,
       isAvailable: true,
-      config: this.config
+      config: {
+        endpoint: this.config.endpoint,
+        timeout: this.config.timeout,
+        retries: this.config.retries,
+        modelPath: this.config.modelPath
+      }
     };
   }
 

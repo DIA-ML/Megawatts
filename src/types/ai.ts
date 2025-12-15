@@ -2,7 +2,7 @@
  * AI and Tool Calling Type Definitions
  * 
  * This file contains comprehensive TypeScript interfaces and types
- * for the AI integration and tool calling system.
+ * for AI integration and tool calling system.
  */
 
 // ============================================================================
@@ -22,6 +22,8 @@ export interface AIProvider {
     requestsPerMinute: number;
     tokensPerMinute: number;
   };
+  priority: number;
+  isAvailable: boolean;
 }
 
 export interface AIModel {
@@ -34,23 +36,26 @@ export interface AIModel {
   maxTokens: number;
   cost: ModelCost;
   costPerToken: number;
-  performance: ModelPerformance;
-  status: 'available' | 'unavailable' | 'deprecated';
-  isDefault: boolean;
+  performance?: ModelPerformance;
+  status?: 'available' | 'unavailable' | 'deprecated';
+  isDefault?: boolean;
 }
 
 export interface AICapability {
   type: 'text' | 'function_calling' | 'code_generation' | 'vision' | 'audio' | 'multimodal';
   supported: boolean;
-  quality: number; // 0-1 scale
-  cost: number; // relative cost multiplier
+  quality?: number; // 0-1 scale
+  cost?: number; // relative cost multiplier
+  enabled?: boolean;
+  confidence?: number;
 }
 
 export interface ModelCapability {
   name: string;
   supported: boolean;
-  quality: number;
-  cost: number;
+  quality?: number;
+  cost?: number;
+  description?: string;
 }
 
 export interface AIProviderConfig {
@@ -60,6 +65,18 @@ export interface AIProviderConfig {
   retries: number;
   rateLimit: RateLimit;
   fallback: FallbackConfig;
+  customHeaders?: Record<string, string>;
+  modelPath?: string;
+  endpoint?: string;
+}
+
+export interface ProviderConfig {
+  apiKey?: string;
+  endpoint?: string;
+  timeout?: number;
+  retries?: number;
+  customHeaders?: Record<string, string>;
+  modelPath?: string;
 }
 
 export interface ProviderHealth {
@@ -68,6 +85,9 @@ export interface ProviderHealth {
   responseTime: number;
   errorRate: number;
   uptime: number;
+  isHealthy?: boolean;
+  lastError?: string;
+  consecutiveFailures?: number;
 }
 
 export interface ModelCost {
@@ -97,7 +117,9 @@ export type ModelType =
 export interface RateLimit {
   requestsPerMinute: number;
   tokensPerMinute: number;
-  concurrentRequests: number;
+  concurrentRequests?: number;
+  requestsPerDay?: number;
+  tokensPerDay?: number;
 }
 
 export interface FallbackConfig {
@@ -133,15 +155,20 @@ export interface ConversationMessage {
 }
 
 export interface ConversationContext {
-  entities: Entity[];
+  summary?: string;
+  entities?: Entity[];
   sentiment?: SentimentTemporal;
-  intents: IntentType[];
+  intents?: IntentType[];
   userPreferences?: UserPreferences;
-  previousMessages: ConversationMessage[];
+  previousMessages?: ConversationMessage[];
   currentTopic?: string;
   language: string;
   timezone?: string;
   platform: 'discord' | 'web' | 'api';
+  tokenCount?: number;
+  messageCount?: number;
+  lastActivity?: Date;
+  id?: string;
 }
 
 export interface MessageMetadata {
@@ -187,6 +214,10 @@ export interface ConversationMetadata {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   category: string;
   resolved: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  participants?: Set<string>;
+  topic?: string;
 }
 
 // ============================================================================
@@ -263,6 +294,10 @@ export interface Entity {
   metadata: EntityMetadata;
   relationships: EntityRelationship[];
   mentions: EntityMention[];
+  frequency?: number;
+  firstSeen?: Date;
+  lastSeen?: Date;
+  context?: EntityContext[];
 }
 
 export type EntityType = 
@@ -303,6 +338,12 @@ export interface EntityMention {
   confidence: number;
 }
 
+export interface EntityContext {
+  messageId: string;
+  conversationId: string;
+  timestamp: Date;
+}
+
 export interface EntityPattern {
   name: string;
   type: EntityType;
@@ -323,6 +364,8 @@ export interface SentimentAnalysis {
   approach: 'rule_based' | 'ml' | 'contextual' | 'hybrid';
   reasoning: string[];
   temporal?: SentimentTemporal;
+  overall?: SentimentScore;
+  compound?: number;
 }
 
 export interface SentimentScore {
@@ -341,8 +384,9 @@ export interface EmotionScore {
 export interface SentimentTemporal {
   overall: SentimentScore;
   trend: 'improving' | 'declining' | 'stable';
-  history: SentimentSnapshot[];
-  predictions: SentimentPrediction[];
+  history?: SentimentSnapshot[];
+  predictions?: SentimentPrediction[];
+  changeRate?: number;
 }
 
 export interface SentimentSnapshot {
@@ -467,13 +511,25 @@ export interface UserPreferences {
   notifications: NotificationSettings;
   customSettings: Record<string, any>;
   updatedAt: Date;
+  notificationSettings?: {
+    enabled: boolean;
+    types: string[];
+    frequency: 'immediate' | 'hourly' | 'daily' | 'weekly';
+    channels: string[];
+    quietHours?: {
+      enabled: boolean;
+      startTime: string;
+      endTime: string;
+      weekends: boolean;
+    };
+  };
 }
 
 export interface CommunicationStyle {
-  tone: 'formal' | 'casual' | 'friendly' | 'professional';
-  verbosity: 'concise' | 'detailed' | 'balanced';
-  emojiUsage: 'none' | 'minimal' | 'moderate' | 'frequent';
-  humor: 'none' | 'light' | 'moderate' | 'frequent';
+  formality?: 'formal' | 'casual';
+  verbosity?: 'concise' | 'detailed' | 'balanced' | 'adaptive';
+  tone?: 'friendly' | 'professional';
+  responseSpeed?: 'immediate' | 'normal' | 'fast';
 }
 
 export interface PrivacySettings {
@@ -488,6 +544,7 @@ export interface AccessibilitySettings {
   fontSize: 'small' | 'medium' | 'large';
   highContrast: boolean;
   screenReader: boolean;
+  keyboardNavigation: boolean;
   reducedMotion: boolean;
   colorBlindMode: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
 }
@@ -693,6 +750,23 @@ export interface ResponseMetadata {
   length: number;
   tokens: number;
   processingTime: number;
+  provider?: string;
+  requestId?: string;
+  modelUsed?: string;
+  tokensUsed?: number;
+  confidence?: number;
+  safetyChecks?: any[];
+  analytics?: {
+    engagement?: { readTime?: number; clickThroughRate?: number; responseRate?: number; shareRate?: number };
+    effectiveness?: { goalAchievement?: number; userSatisfaction?: number; taskCompletion?: number; errorReduction?: number };
+    learning?: { patternRecognition?: number; adaptationRate?: number; improvementSuggestions?: number; knowledgeGained?: number };
+  };
+  routing?: {
+    analysis?: any;
+    processedAt?: Date;
+    optimizations?: any[];
+  };
+  [key: string]: any;
 }
 
 export interface ResponsePersonalization {
@@ -701,6 +775,10 @@ export interface ResponsePersonalization {
   userProfile: boolean;
   contextual: boolean;
   userId?: string;
+  applied?: boolean;
+  adjustments?: PersonalizationAdjustment[];
+  effectiveness?: number;
+  feedback?: ResponseFeedback;
 }
 
 export interface PersonalizationAdjustment {
@@ -708,6 +786,7 @@ export interface PersonalizationAdjustment {
   original: any;
   modified: any;
   reason: string;
+  confidence?: number;
 }
 
 export interface ResponseQuality {
@@ -723,13 +802,75 @@ export interface ResponseQuality {
 // CONFIGURATION TYPES
 // ============================================================================
 
-export interface AIConfig {
-  providers: AIProviderConfig[];
-  models: ModelConfig[];
-  routing: RoutingConfig;
-  safety: SafetyConfig;
-  learning: LearningConfig;
-  tools: ToolsConfig;
+export interface AIConfiguration {
+  providers: {
+    openai: {
+      enabled: boolean;
+      apiKey: string;
+      endpoint?: string;
+      timeout?: number;
+      retries?: number;
+      customHeaders?: Record<string, string>;
+    };
+    anthropic: {
+      enabled: boolean;
+      apiKey: string;
+      endpoint?: string;
+      timeout?: number;
+      retries?: number;
+      customHeaders?: Record<string, string>;
+    };
+    local: {
+      enabled: boolean;
+      endpoint?: string;
+      timeout?: number;
+      retries?: number;
+      modelPath?: string;
+    };
+  };
+  routing: {
+    strategy: RoutingStrategy;
+    strategies: RoutingStrategyConfig[];
+    loadBalancing: LoadBalancingConfig;
+    healthCheck: HealthCheckConfig;
+  };
+  safety: {
+    enabled: boolean;
+    level?: 'low' | 'medium' | 'high' | 'critical';
+    checks?: string[];
+  };
+  personalization: {
+    enabled: boolean;
+    strategies?: string[];
+  };
+  formatting: {
+    enabled: boolean;
+    strategies?: string[];
+  };
+  enhancements: {
+    enabled: boolean;
+    types?: string[];
+  };
+  performance: {
+    maxConcurrentRequests?: number;
+    queueSize?: number;
+    timeoutMs?: number;
+    retryAttempts?: number;
+  };
+  conversation: {
+    maxMessagesPerConversation?: number;
+    maxMessageAge?: number;
+    cleanup: {
+      enabled: boolean;
+      interval?: number;
+      maxAge?: number;
+    };
+  };
+  memory: {
+    maxMemories?: number;
+    retention?: number;
+    indexing?: boolean;
+  };
 }
 
 export interface ModelConfig {
@@ -848,12 +989,17 @@ export interface SentimentPattern {
   confidence: number;
 }
 
-// Additional missing types for the AI system
+// Additional missing types for AI system
 
 export interface Intent {
   type: IntentType;
   confidence: number;
   parameters?: Record<string, any>;
+  subIntents?: SubIntent[];
+  context?: IntentContext;
+  matchedPattern?: IntentPattern;
+  reasoning?: string[];
+  approach?: 'keyword' | 'ml' | 'hybrid' | 'pattern';
 }
 
 export interface Priority {
@@ -862,16 +1008,15 @@ export interface Priority {
 }
 
 export interface Response {
+  id: string;
+  conversationId?: string;
   content: string;
   type: 'text' | 'embed' | 'file' | 'interactive';
-  metadata?: any;
-}
-
-export interface AIResponse {
-  content: string;
-  confidence: number;
-  metadata?: any;
-  processingTime?: number;
+  strategy: ResponseStrategy;
+  personalization: ResponsePersonalization;
+  metadata: ResponseMetadata;
+  attachments?: any[];
+  toolCalls?: any[];
 }
 
 export interface SafetyCheckResult {
@@ -879,23 +1024,65 @@ export interface SafetyCheckResult {
   reason?: string;
   confidence: number;
   recommendations?: string[];
+  isSafe?: boolean;
+  issues?: SafetyIssue[];
+  recommendations?: string[];
+  escalation?: EscalationInfo;
+  audit?: AuditInfo;
+}
+
+export interface SafetyIssue {
+  type: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  description: string;
+  confidence: number;
+  evidence?: string[];
+  mitigation?: string;
+  preventable?: boolean;
+}
+
+export interface EscalationInfo {
+  required: boolean;
+  level: 'human' | 'automated' | 'manager';
+  reason: string;
+  urgency: 'low' | 'normal' | 'high' | 'critical';
+  contacts: string[];
+}
+
+export interface AuditInfo {
+  id: string;
+  timestamp: Date;
+  assessor: string;
+  methodology: string;
+  findings: any[];
+  recommendations: string[];
+  followUp: {
+    required: boolean;
+    schedule: string;
+    responsible: string[];
+  };
 }
 
 export interface ConversationFlow {
   id: string;
   userId: string;
-  state: string;
+  state?: string;
   context: any;
   history: ConversationMessage[];
   nextSteps: string[];
+  stage?: 'opening' | 'development' | 'resolution' | 'closing';
+  progress?: number;
+  expectedNextIntents?: string[];
+  blockers?: string[];
 }
 
 export interface TemporalContext {
   timestamp: Date;
   timezone: string;
-  season?: string;
-  timeOfDay?: string;
+  season?: 'spring' | 'summer' | 'fall' | 'winter';
+  timeOfDay?: 'morning' | 'afternoon' | 'evening' | 'night';
   dayOfWeek?: string;
+  recentEvents?: any[];
 }
 
 export interface RoutingStrategy {
@@ -922,6 +1109,8 @@ export interface RoutingCondition {
 export interface RoutingAction {
   type: 'route_to' | 'fallback' | 'reject';
   target: string;
+  provider?: string;
+  model?: string;
   parameters?: any;
 }
 
@@ -939,9 +1128,200 @@ export interface PersonalizationAdjustment {
   reason: string;
 }
 
-export interface PersonalizationAdjustment {
+export interface AIRequest {
+  id: string;
+  model?: string;
+  messages: AIMessage[];
+  maxTokens?: number;
+  temperature?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  functions?: any[];
+  function_call?: any;
+  tools?: any[];
+  tool_choice?: any;
+  timestamp: Date;
+  userId?: string;
+  conversationId?: string;
+  contextWindow?: number;
+}
+
+export interface AIMessage {
+  role: 'system' | 'user' | 'assistant' | 'function' | 'tool';
+  content: string;
+  name?: string;
+  function_call?: any;
+  tool_calls?: any[];
+  tool_call_id?: string;
+}
+
+export interface AIResponse {
+  id: string;
+  model: string;
+  created: Date;
+  content: string;
+  role: string;
+  finishReason?: string;
+  usage: TokenUsage;
+  functionCall?: any;
+  toolCalls?: any[];
+  metadata: ResponseMetadata;
+}
+
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+export interface ResponseFeedback {
+  rating?: number;
+  comment?: string;
+  type?: 'explicit' | 'implicit';
+  timestamp?: Date;
+}
+
+export interface RoutingRequest {
+  id?: string;
+  userId?: string;
+  guildId?: string;
+  channelId?: string;
+  userRole?: string;
+  userTier?: string;
+  userStats?: UserStats;
+  priority?: Priority;
+  intent?: Intent;
+  context?: ConversationContext;
+  messages?: AIMessage[];
+  maxTokens?: number;
+  contextWindow?: number;
+  temperature?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  functions?: any[];
+  function_call?: any;
+  tools?: any[];
+  tool_choice?: any;
+  attachments?: Attachment[];
+}
+
+export interface RoutingResult {
+  requestId: string;
+  response?: AIResponse;
+  routingDecision?: RoutingDecision;
+  processingTime: number;
+  strategy: RoutingStrategy;
+  analysis: RequestAnalysis;
+  queued?: boolean;
+  estimatedProcessingTime?: number;
+  queuePosition?: number;
+}
+
+export interface ProcessingContext {
+  userId?: string;
+  guildId?: string;
+  channelId?: string;
+  channelType?: string;
+  userPreferences?: UserPreferences;
+  conversationContext?: ConversationContext;
+  sentiment?: SentimentAnalysis;
+  intent?: any;
+  requestMessages?: string[];
+  userFeedback?: ResponseFeedback;
+}
+
+export interface ModelSelectionRequest {
+  id: string;
+  userId?: string;
+  guildId?: string;
+  channelId?: string;
+  intent?: Intent;
+  messages?: AIMessage[];
+  requiredCapabilities?: string[];
+  maxTokens?: number;
+  contextWindow?: number;
+  maxCost?: number;
+  minPriority?: number;
+  priority?: Priority;
+}
+
+export interface ModelSelectionResult {
+  model: AvailableModel;
+  provider: BaseAIProvider;
+  confidence: number;
+  reasoning: string[];
+  alternatives: AvailableModel[];
+}
+
+export interface AvailableModel {
+  modelId: string;
+  providerId: string;
+  model: AIModel;
+  capabilities: ModelCapability[];
+  costPerToken: number;
+  maxTokens: number;
+  contextWindow: number;
+  isDefault: boolean;
+}
+
+export interface RequestAnalysis {
+  complexity: 'low' | 'medium' | 'high';
+  priority: Priority;
+  estimatedTokens: number;
+  capabilities: string[];
+  contentType: string;
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  costSensitivity: 'low' | 'medium' | 'high';
+  latencySensitivity: 'low' | 'medium' | 'high';
+  intent?: Intent;
+  context?: ConversationContext;
+}
+
+export interface RoutingDecision {
+  provider: string;
+  model: string;
+  confidence: number;
+  reasoning: string[];
+  strategy: string;
+  estimatedCost: number;
+}
+
+export interface UserStats {
+  dailyRequests: number;
+  monthlyRequests: number;
+  averageTokensPerRequest: number;
+  lastRequest: Date;
+}
+
+export interface Attachment {
   type: string;
-  original: any;
-  modified: any;
-  reason: string;
+  url: string;
+  size: number;
+  name: string;
+}
+
+export interface RoutingStrategyConfig {
+  name: string;
+  algorithm: string;
+  weights: Record<string, number>;
+  conditions?: Record<string, any>;
+}
+
+// Base class for AI providers (to be used in interfaces)
+export declare class BaseAIProvider {
+  constructor(config: ProviderConfig, logger: any);
+  getProviderInfo(): AIProvider;
+  getAvailableModels(): AIModel[];
+  isAvailable(): Promise<boolean>;
+  generateResponse(request: AIRequest): Promise<AIResponse>;
+  validateRequest(request: AIRequest): Promise<ValidationResult>;
+  estimateCost(request: AIRequest): Promise<number>;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
 }
