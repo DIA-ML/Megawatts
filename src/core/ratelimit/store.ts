@@ -1,4 +1,7 @@
 import { RateLimitStore, RateLimitBucket, RateLimitInfo, RateLimitMetrics } from './types';
+
+// Export interface for use in other modules
+export { RateLimitStore };
 import { Logger } from '../../utils/logger';
 
 const logger = new Logger('RateLimitStore');

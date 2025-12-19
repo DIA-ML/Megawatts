@@ -83,7 +83,7 @@ export class ValidationError extends Error {
 export class SelfEditingError extends Error {
   public readonly code: string;
   public readonly severity: 'low' | 'medium' | 'high' | 'critical';
-  public readonly context?: Record<string, any> | undefined;
+  public readonly context?: Record<string, any>;
   public readonly component: string;
   public readonly operation: string;
   public readonly modificationId?: string;
@@ -108,11 +108,11 @@ export class SelfEditingError extends Error {
     this.severity = severity;
     this.component = component;
     this.operation = operation;
-    this.modificationId = modificationId;
-    this.pluginId = pluginId;
-    this.learningDataId = learningDataId;
-    this.recoveryAction = recoveryAction;
-    this.context = context;
+    if (modificationId !== undefined) this.modificationId = modificationId;
+    if (pluginId !== undefined) this.pluginId = pluginId;
+    if (learningDataId !== undefined) this.learningDataId = learningDataId;
+    if (recoveryAction !== undefined) this.recoveryAction = recoveryAction;
+    if (context !== undefined) this.context = context;
   }
 }
 

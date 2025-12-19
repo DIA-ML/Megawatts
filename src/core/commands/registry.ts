@@ -69,51 +69,70 @@ export class CommandRegistry {
     
     // Check if message is a command
     if (!message.content || !message.content.startsWith('!')) {
-      return this.createError('Invalid command format');
+      return this.createCommandError('Invalid command format');
     }
 
     const parts = message.content.slice(1).trim().split(/\s+/);
     const commandName = parts[0]?.toLowerCase();
     
     if (!commandName) {
-      return this.createError('No command specified');
+      return this.createCommandError('No command specified');
     }
 
     const command = this.getCommand(commandName) || this.getCommandByAlias(commandName);
     
     if (!command) {
-      return this.createError(`Unknown command: ${commandName}`);
+      return this.createCommandError(`Unknown command: ${commandName}`);
     }
 
     // Check permissions
-    const hasPermission = await command.checkPermissions(context);
+    const hasPermission = await (command as any).checkPermissions?.(context) ?? true;
     if (!hasPermission) {
-      return command.createError('Insufficient permissions');
+      return this.createCommandErrorFromCommand(command, 'Insufficient permissions');
     }
 
     // Check cooldown
     const userId = context.user?.id;
-    const hasCooldown = await command.checkCooldown(userId);
+    const hasCooldown = await (command as any).checkCooldown?.(userId) ?? true;
     if (!hasCooldown) {
-      return command.createError('Command is on cooldown');
+      return this.createCommandErrorFromCommand(command, 'Command is on cooldown');
     }
 
     try {
       // Parse command arguments
       const args = parts.slice(1);
       
-      // Execute command
+      // Execute command with proper context
       const result = await command.execute({
-        ...context,
+        message,
+        guild,
+        channel: context.channel,
+        user: context.user,
+        member: context.member,
+        interaction: context.interaction,
         args,
       });
 
       this.logger.info(`Command ${commandName} executed by ${context.user?.tag}`);
       return result;
     } catch (error) {
-      this.logger.error(`Command ${commandName} failed:`, error);
-      return command.createError('Command execution failed');
+      this.logger.error(`Command ${commandName} failed:`, error as Error);
+      return this.createCommandErrorFromCommand(command, 'Command execution failed');
     }
+  }
+
+  private createCommandError(message: string): CommandResult {
+    return {
+      success: false,
+      error: message,
+    };
+  }
+
+  private createCommandErrorFromCommand(command: BaseCommand, message: string): CommandResult {
+    return {
+      success: false,
+      error: message,
+    };
   }
 
   private getCommandAliases(commandName: string): string[] {

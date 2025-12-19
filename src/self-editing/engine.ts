@@ -1,4 +1,5 @@
-import { SelfEditingConfig, SelfEditingMetrics, BotError } from '../types';
+import { SelfEditingConfig, SelfEditingMetrics } from '../types';
+import { BotError } from '../utils/errors';
 import { Logger } from '../utils/logger';
 
 export class SelfEditingEngine {
@@ -48,7 +49,7 @@ export class SelfEditingEngine {
   }
 
   public async analyzeUserFeedback(): Promise<SelfEditingMetrics> {
-    if (!this.config.userFeedback.enabled) {
+    if (!this.config.criteria.userFeedback.enabled) {
       throw new BotError('User feedback analysis not enabled', 'low');
     }
 
@@ -88,7 +89,7 @@ export class SelfEditingEngine {
   }
 
   public async analyzeCodeQuality(): Promise<SelfEditingMetrics> {
-    if (!this.config.codeQuality.enabled) {
+    if (!this.config.criteria.codeQuality.enabled) {
       throw new BotError('Code quality analysis not enabled', 'low');
     }
 
@@ -213,7 +214,7 @@ export class SelfEditingEngine {
   private generateImprovementSuggestions(feedback: any[]): string[] {
     const suggestions: string[] = [];
     
-    if (feedback.length < this.config.userFeedback.minInteractions) {
+    if (feedback.length < this.config.criteria.userFeedback.minInteractions) {
       suggestions.push('Increase user engagement to gather more Feedback');
     }
     
@@ -251,7 +252,7 @@ export class SelfEditingEngine {
   }
 
   private calculateFeedbackConfidence(feedback: any[]): number {
-    const confidence = Math.min(feedback.length / this.config.userFeedback.minInteractions, 1);
+    const confidence = Math.min(feedback.length / this.config.criteria.userFeedback.minInteractions, 1);
     return confidence * 0.8 + 0.1; // Scale to 10-90%
   }
 
@@ -311,11 +312,11 @@ export class SelfEditingEngine {
     const avgResponseTime = recentMetrics.reduce((sum, m) => sum + (m.metrics.responseTime as number), 0) / recentMetrics.length;
     const avgErrorRate = recentMetrics.reduce((sum, m) => sum + (m.metrics.errorRate as number), 0) / recentMetrics.length;
 
-    if (avgResponseTime > (this.config.performance?.thresholds?.responseTime || 1000)) {
+    if (avgResponseTime > (this.config.criteria.performance?.thresholds?.responseTime || 1000)) {
       adaptations.push('Optimize response processing to reduce latency');
     }
 
-    if (avgErrorRate > (this.config.performance?.thresholds?.errorRate || 0.05)) {
+    if (avgErrorRate > (this.config.criteria.performance?.thresholds?.errorRate || 0.05)) {
       adaptations.push('Implement additional error handling and validation');
     }
 

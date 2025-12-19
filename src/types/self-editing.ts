@@ -12,6 +12,35 @@ export interface SelfEditingConfig {
   monitoring: MonitoringConfig;
   plugins: PluginSystemConfig;
   meta: MetaLearningConfig;
+  userFeedback: UserFeedbackConfig;
+  codeQuality: CodeQualityConfig;
+  performance: PerformanceConfig;
+}
+
+export interface UserFeedbackConfig {
+  enabled: boolean;
+  minInteractions: number;
+  collectionMethod: 'reactions' | 'ratings' | 'comments' | 'all';
+  analysisInterval: number; // hours
+}
+
+export interface CodeQualityConfig {
+  enabled: boolean;
+  analysisTools: string[];
+  complexityThreshold: number;
+  coverageThreshold: number;
+  autoFix: boolean;
+}
+
+export interface PerformanceConfig {
+  enabled: boolean;
+  thresholds: {
+    responseTime: number;
+    errorRate: number;
+    memoryUsage: number;
+    cpuUsage: number;
+  };
+  monitoringInterval: number; // minutes
 }
 
 export interface SafetyConfig {

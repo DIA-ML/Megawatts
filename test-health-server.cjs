@@ -78,7 +78,7 @@ app.get('/', (req, res) => {
   });
 });
 
-const PORT = process.env.HTTP_PORT || 8080;
+const PORT = process.env.HTTP_PORT || 8081;
 const HOST = process.env.HTTP_HOST || '0.0.0.0';
 
 const server = app.listen(PORT, HOST, () => {

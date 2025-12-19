@@ -8,6 +8,7 @@ export interface CommandContext {
   user: any;
   member: any;
   interaction?: any;
+  args?: string[];
 }
 
 export interface CommandResult {
@@ -77,11 +78,14 @@ export abstract class BaseCommand {
   }
 
   protected createResult(success: boolean, message?: string, data?: any): CommandResult {
-    return {
+    const result: CommandResult = {
       success,
-      message,
-      data,
     };
+    
+    if (message !== undefined) result.message = message;
+    if (data !== undefined) result.data = data;
+    
+    return result;
   }
 
   protected createError(message: string): CommandResult {

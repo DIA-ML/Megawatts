@@ -16,13 +16,11 @@ export class DiscordBot {
       intents: this.getIntents(),
       partials: [
         Partials.User,
-        Partials.Guild,
         Partials.Channel,
         Partials.Message,
         Partials.Reaction,
         Partials.GuildMember,
         Partials.GuildScheduledEvent,
-        Partials.GuildScheduledEventUser,
       ],
     });
 
@@ -104,8 +102,8 @@ export class DiscordBot {
     if ('code' in error) {
       const botError = error as any;
       this.logger.error(`Bot Error [${botError.code}]: ${botError.message}`, {
-        context: botError.context || undefined,
-        severity: botError.severity || undefined,
+        ...(botError.context && { context: botError.context }),
+        ...(botError.severity && { severity: botError.severity }),
       });
     } else {
       this.logger.error('Unexpected error:', error);
