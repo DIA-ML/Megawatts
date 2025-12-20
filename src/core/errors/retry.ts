@@ -102,9 +102,9 @@ export class RetryHandler {
       }
     }
 
-    this.logger.error('All retry attempts failed', {
+    this.logger.error('All retry attempts failed', lastError || new Error('All retry attempts failed'), {
       totalAttempts: config.maxAttempts,
-      finalError: lastError?.message,
+      finalError: (lastError as any)?.message,
       classification: classification.category
     });
 

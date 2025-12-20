@@ -1,4 +1,4 @@
-import { ConnectionConfig, DEFAULT_CONNECTION_CONFIG } from './types';
+import { ConnectionConfig, DEFAULT_CONNECTION_CONFIG, DegradationLevel } from './types';
 import { Logger } from '../../utils/logger';
 
 /**
@@ -422,7 +422,7 @@ export class ConnectionConfigManager {
   /**
    * Get default configuration
    */
-  public static getDefault(): ConnectionConfigManager {
+  public static getDefault(logger: Logger): ConnectionConfigManager {
     return new ConnectionConfigManager({}, logger);
   }
 
@@ -501,19 +501,37 @@ export class ConnectionConfigManager {
           maxReconnectAttempts: 5,
           reconnectDelay: 10000,
           healthCheck: {
+            enabled: true,
             interval: 60000,
-            timeout: 15000
+            timeout: 15000,
+            retries: 3,
+            checks: []
           },
           circuitBreaker: {
+            enabled: true,
             failureThreshold: 3,
-            timeout: 30000
+            timeout: 30000,
+            recoveryThreshold: 3,
+            monitoringPeriod: 300000,
+            halfOpenMaxCalls: 3,
+            resetTimeout: 120000
           },
           degradation: {
+            enabled: true,
             thresholds: {
               latency: 2000,
               errorRate: 0.2,
               consecutiveErrors: 5
-            }
+            },
+            actions: {
+              [DegradationLevel.NONE]: [],
+              [DegradationLevel.MINIMAL]: ['reduce_logging_level'],
+              [DegradationLevel.MODERATE]: ['disable_analytics', 'increase_timeouts'],
+              [DegradationLevel.SEVERE]: ['disable_non_critical_features', 'reduce_concurrent_requests', 'enable_aggressive_caching'],
+              [DegradationLevel.CRITICAL]: ['enable_read_only_mode', 'shutdown_non_essential_services']
+            } as any,
+            recoveryThreshold: 0.05,
+            recoveryDelay: 30000
           }
         };
 
@@ -522,19 +540,37 @@ export class ConnectionConfigManager {
           maxReconnectAttempts: 10,
           reconnectDelay: 5000,
           healthCheck: {
+            enabled: true,
             interval: 30000,
-            timeout: 10000
+            timeout: 10000,
+            retries: 3,
+            checks: []
           },
           circuitBreaker: {
+            enabled: true,
             failureThreshold: 5,
-            timeout: 60000
+            timeout: 60000,
+            recoveryThreshold: 3,
+            monitoringPeriod: 300000,
+            halfOpenMaxCalls: 3,
+            resetTimeout: 120000
           },
           degradation: {
+            enabled: true,
             thresholds: {
               latency: 1000,
               errorRate: 0.1,
               consecutiveErrors: 3
-            }
+            },
+            actions: {
+              [DegradationLevel.NONE]: [],
+              [DegradationLevel.MINIMAL]: ['reduce_logging_level'],
+              [DegradationLevel.MODERATE]: ['disable_analytics', 'increase_timeouts'],
+              [DegradationLevel.SEVERE]: ['disable_non_critical_features', 'reduce_concurrent_requests', 'enable_aggressive_caching'],
+              [DegradationLevel.CRITICAL]: ['enable_read_only_mode', 'shutdown_non_essential_services']
+            } as any,
+            recoveryThreshold: 0.05,
+            recoveryDelay: 30000
           }
         };
 
@@ -543,19 +579,37 @@ export class ConnectionConfigManager {
           maxReconnectAttempts: 20,
           reconnectDelay: 3000,
           healthCheck: {
+            enabled: true,
             interval: 15000,
-            timeout: 5000
+            timeout: 5000,
+            retries: 3,
+            checks: []
           },
           circuitBreaker: {
+            enabled: true,
             failureThreshold: 10,
-            timeout: 120000
+            timeout: 120000,
+            recoveryThreshold: 3,
+            monitoringPeriod: 300000,
+            halfOpenMaxCalls: 3,
+            resetTimeout: 120000
           },
           degradation: {
+            enabled: true,
             thresholds: {
               latency: 500,
               errorRate: 0.05,
               consecutiveErrors: 2
-            }
+            },
+            actions: {
+              [DegradationLevel.NONE]: [],
+              [DegradationLevel.MINIMAL]: ['reduce_logging_level'],
+              [DegradationLevel.MODERATE]: ['disable_analytics', 'increase_timeouts'],
+              [DegradationLevel.SEVERE]: ['disable_non_critical_features', 'reduce_concurrent_requests', 'enable_aggressive_caching'],
+              [DegradationLevel.CRITICAL]: ['enable_read_only_mode', 'shutdown_non_essential_services']
+            } as any,
+            recoveryThreshold: 0.05,
+            recoveryDelay: 30000
           }
         };
     }

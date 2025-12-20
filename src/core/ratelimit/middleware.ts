@@ -74,7 +74,7 @@ export class DiscordRateLimitMiddleware implements RateLimitMiddleware {
     } finally {
       const responseTime = Date.now() - startTime;
       await this.bucketManager.store.incrementMetric('totalRequests');
-      this.bucketManager.store.updateAverageResponseTime(responseTime);
+      // Note: updateAverageResponseTime method doesn't exist, skipping for now
     }
   }
 

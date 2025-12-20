@@ -15,7 +15,7 @@ describe('Bot', () => {
 
   beforeEach(() => {
     mockLogger = new MockLogger() as jest.Mocked<Logger>;
-    bot = new Bot(mockLogger);
+    bot = new Bot(mockLogger, {} as any);
   });
 
   describe('constructor', () => {

@@ -25,7 +25,7 @@ export class ErrorRecoveryManager {
     nextAttemptTime: 0
   };
   private errorHistory: Array<{
-    error: Error | BotError;
+    error: Error | BotErrorClass;
     timestamp: number;
     recoveryAttempted: boolean;
     recoverySuccessful?: boolean;

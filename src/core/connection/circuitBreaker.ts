@@ -56,37 +56,37 @@ export class CircuitBreaker {
 
     // Check if circuit is open
     if (this.state === CircuitBreakerState.OPEN) {
-      this.metrics.rejectedCalls++;
-      
-      this.logger.warn(`Circuit breaker OPEN - rejecting call to ${operationName}`);
+      // Check if we should attempt to reset
+      if (this.shouldAttemptReset()) {
+        this.transitionToHalfOpen();
+      } else {
+        this.metrics.rejectedCalls++;
+        
+        this.logger.warn(`Circuit breaker OPEN - rejecting call to ${operationName}`);
 
-      await this.emitEvent({
-        type: ConnectionEventType.CIRCUIT_BREAKER_TRIGGERED,
-        timestamp: new Date(),
-        data: {
-          circuitBreakerState: this.state,
-          metadata: {
-            operationName,
-            rejectedCalls: this.metrics.rejectedCalls,
-            totalCalls: this.metrics.totalCalls
+        await this.emitEvent({
+          type: ConnectionEventType.CIRCUIT_BREAKER_TRIGGERED,
+          timestamp: new Date(),
+          data: {
+            circuitBreakerState: this.state,
+            metadata: {
+              operationName,
+              rejectedCalls: this.metrics.rejectedCalls,
+              totalCalls: this.metrics.totalCalls
+            }
           }
-        }
-      });
+        });
 
-      throw new BotError(
-        `Circuit breaker is open - operation ${operationName} rejected`,
-        'medium',
-        {
-          state: this.state,
-          failureCount: this.metrics.failureCount,
-          nextAttempt: this.metrics.nextAttempt
-        }
-      );
-    }
-
-    // Check if we should attempt to reset
-    if (this.state === CircuitBreakerState.OPEN && this.shouldAttemptReset()) {
-      this.transitionToHalfOpen();
+        throw new BotError(
+          `Circuit breaker is open - operation ${operationName} rejected`,
+          'medium',
+          {
+            state: this.state,
+            failureCount: this.metrics.failureCount,
+            nextAttempt: this.metrics.nextAttempt
+          }
+        );
+      }
     }
 
     try {

@@ -104,7 +104,7 @@ export class ReconnectionManager {
     
     try {
       // Destroy existing client
-      if (client.status !== 0) { // Not destroyed
+      if (client.ws) { // Check if client has websocket connection
         client.destroy();
       }
 

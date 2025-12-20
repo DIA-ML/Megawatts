@@ -1,12 +1,13 @@
 import { Message } from 'discord.js';
 import { Logger } from '../../utils/logger';
-import { 
-  MessageContext, 
-  RoutingDecision, 
-  HandlerType, 
-  MessageIntent, 
-  SafetyCheckResult, 
-  PipelineConfig 
+import {
+  MessageContext,
+  RoutingDecision,
+  HandlerType,
+  MessageIntent,
+  SafetyCheckResult,
+  PipelineConfig,
+  IntentType
 } from './types';
 
 /**

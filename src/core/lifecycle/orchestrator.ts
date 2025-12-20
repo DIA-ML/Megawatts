@@ -231,7 +231,7 @@ export class LifecycleOrchestrator {
    * Stop the bot lifecycle
    */
   public async stop(reason?: string): Promise<{ success: boolean; error?: Error }> {
-    if (!this.isRunning) {
+    if (!this.isLifecycleRunning) {
       this.logger.warn('Bot is not running');
       return { success: false, error: new Error('Bot is not running') };
     }
@@ -272,20 +272,20 @@ export class LifecycleOrchestrator {
 
         this.logger.info('Bot lifecycle stopped successfully');
         return { success: true };
-      } else {
-        this.currentState = BotState.ERROR;
-        
-        await this.emitEvent({
-          type: LifecycleEventType.ERROR_OCCURRED,
-          timestamp: new Date(),
-          data: {
-            error: shutdownResult.error || new Error('Unknown shutdown error'),
-            metadata: { phase: 'lifecycle_shutdown_failed' }
-          }
-        });
-
-        return { success: false, error: shutdownResult.error };
       }
+      
+      this.currentState = BotState.ERROR;
+      
+      await this.emitEvent({
+        type: LifecycleEventType.ERROR_OCCURRED,
+        timestamp: new Date(),
+        data: {
+          error: shutdownResult.error || new Error('Unknown shutdown error'),
+          metadata: { phase: 'lifecycle_shutdown_failed' }
+        }
+      });
+
+      return { success: false, error: shutdownResult.error };
       
     } catch (error) {
       this.currentState = BotState.ERROR;
@@ -299,10 +299,10 @@ export class LifecycleOrchestrator {
    * Handle connection state changes
    */
   private async handleConnectionStateChange(event: LifecycleEvent): Promise<void> {
-    this.logger.debug('Connection state changed:', event.data.currentState);
+    this.logger.debug('Connection state changed');
     
     // Update orchestrator state if it's a major state change
-    if (event.data.currentState && 
+    if (event.data.currentState &&
         [BotState.READY, BotState.DISCONNECTED, BotState.ERROR].includes(event.data.currentState)) {
       this.currentState = event.data.currentState;
       
@@ -324,7 +324,7 @@ export class LifecycleOrchestrator {
    * Handle connection health changes
    */
   private async handleConnectionHealthChange(event: LifecycleEvent): Promise<void> {
-    this.logger.debug('Connection health changed:', event.data.healthStatus);
+    this.logger.debug('Connection health changed');
     
     // Forward to external listeners
     await this.emitEvent({
@@ -363,7 +363,7 @@ export class LifecycleOrchestrator {
    * Handle startup state changes
    */
   private async handleStartupStateChange(event: LifecycleEvent): Promise<void> {
-    this.logger.debug('Startup state changed:', event.data.currentState);
+    this.logger.debug('Startup state changed');
     
     // Forward to external listeners
     await this.emitEvent({
@@ -397,7 +397,7 @@ export class LifecycleOrchestrator {
    * Handle shutdown initiated
    */
   private async handleShutdownInitiated(event: LifecycleEvent): Promise<void> {
-    this.logger.info('Shutdown initiated:', event.data.shutdownReason);
+    this.logger.info('Shutdown initiated');
     
     // Forward to external listeners
     await this.emitEvent({
@@ -414,10 +414,10 @@ export class LifecycleOrchestrator {
    * Handle shutdown completed
    */
   private async handleShutdownCompleted(event: LifecycleEvent): Promise<void> {
-    this.logger.info('Shutdown completed:', event.data.shutdownReason);
+    this.logger.info('Shutdown completed');
     
     this.currentState = BotState.SHUTDOWN;
-    this.isRunning = false;
+    this.isLifecycleRunning = false;
     
     // Forward to external listeners
     await this.emitEvent({
@@ -434,7 +434,7 @@ export class LifecycleOrchestrator {
    * Handle recovery attempted
    */
   private async handleRecoveryAttempted(event: LifecycleEvent): Promise<void> {
-    this.logger.debug('Recovery attempted:', event.data.recoveryAttempt);
+    this.logger.debug('Recovery attempted');
     
     // Forward to external listeners
     await this.emitEvent({
@@ -451,7 +451,7 @@ export class LifecycleOrchestrator {
    * Handle recovery completed
    */
   private async handleRecoveryCompleted(event: LifecycleEvent): Promise<void> {
-    this.logger.info('Recovery completed:', event.data.recoveryResult);
+    this.logger.info('Recovery completed');
     
     // Forward to external listeners
     await this.emitEvent({
@@ -485,10 +485,10 @@ export class LifecycleOrchestrator {
    * Handle reconnection state changes
    */
   private async handleReconnectionStateChange(event: LifecycleEvent): Promise<void> {
-    this.logger.debug('Reconnection state changed:', event.data.currentState);
+    this.logger.debug('Reconnection state changed');
     
     // Update orchestrator state if it's a major state change
-    if (event.data.currentState && 
+    if (event.data.currentState &&
         [BotState.RECONNECTING, BotState.READY].includes(event.data.currentState)) {
       this.currentState = event.data.currentState;
       
@@ -497,7 +497,7 @@ export class LifecycleOrchestrator {
         timestamp: new Date(),
         data: {
           currentState: this.currentState,
-          metadata: { 
+          metadata: {
             source: 'reconnection_manager',
             previousState: event.data.previousState
           }
@@ -527,7 +527,7 @@ export class LifecycleOrchestrator {
    * Check if bot is running
    */
   public isRunning(): boolean {
-    return this.isRunning;
+    return this.isLifecycleRunning;
   }
 
   /**
@@ -665,7 +665,7 @@ export class LifecycleOrchestrator {
     
     this.listeners.clear();
     this.currentState = BotState.SHUTDOWN;
-    this.isRunning = false;
+    this.isLifecycleRunning = false;
     this.client = undefined;
     
     this.logger.info('Lifecycle orchestrator cleaned up');
