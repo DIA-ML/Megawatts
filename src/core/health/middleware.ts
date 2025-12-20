@@ -1,5 +1,5 @@
-import { HealthOrchestrator } from './orchestrator';
-import { Logger } from '../../utils/logger';
+import { HealthOrchestrator } from './orchestrator.js';
+import { Logger } from '../../utils/logger.js';
 
 // Define basic interfaces for compatibility
 export interface Request {

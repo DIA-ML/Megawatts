@@ -39,10 +39,12 @@
     "src/self-editing",
     "src/storage",
     "src/tools",
-    "src/utils",
     "src/config",
     "src/scripts",
-    "src/ai"
+    "src/ai",
+    "src/**/__tests__",
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ],
   "ts-node": {
     "version": "10.0.0",

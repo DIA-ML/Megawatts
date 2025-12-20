@@ -208,27 +208,88 @@ export class MessageRouter {
   ): boolean {
     // Ignore bot messages
     if (message.author?.bot) {
+      this.logger.debug(`Ignoring bot message from ${message.author?.id}`);
       return true;
     }
 
     // Ignore messages from self
     if (message.author?.id === message.client?.user?.id) {
+      this.logger.debug(`Ignoring self message`);
       return true;
     }
 
     // Ignore very low confidence intents
     if (intent.confidence < 0.1) {
+      this.logger.debug(`Ignoring low confidence intent: ${intent.confidence}`);
       return true;
     }
 
     // Ignore empty messages
     if (!message.content || message.content.trim().length === 0) {
+      this.logger.debug(`Ignoring empty message`);
       return true;
     }
 
-    // Ignore messages in ignored channels (would be configurable)
-    const ignoredChannels = ['bot-commands', 'admin-only'];
-    if (ignoredChannels.includes(context.channelId)) {
+    // Channel filtering and mention detection
+    const isInAllowedChannel = this.isInAllowedChannel(context.channelId, message);
+    const hasBotMention = this.hasBotMention(message);
+
+    // If respondToMentions is enabled and bot is mentioned, allow regardless of channel
+    if (this.config.respondToMentions && hasBotMention) {
+      this.logger.debug(`Allowing message with bot mention in channel ${context.channelId}`);
+      return false;
+    }
+
+    // If not in allowed channel and no bot mention, ignore
+    if (!isInAllowedChannel && !hasBotMention) {
+      this.logger.debug(`Ignoring message in channel ${context.channelId} - not in allowed channels and no bot mention`);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if channel is in allowed channels list
+   */
+  private isInAllowedChannel(channelId: string, message: Message): boolean {
+    // If no channel restrictions are set, allow all channels
+    if (!this.config.allowedChannels?.length && !this.config.allowedChannelNames?.length) {
+      return true;
+    }
+
+    // Check by channel ID
+    if (this.config.allowedChannels?.includes(channelId)) {
+      this.logger.debug(`Channel ${channelId} is in allowed channels list`);
+      return true;
+    }
+
+    // Check by channel name (fallback) - only for guild channels
+    if (message.channel && 'name' in message.channel) {
+      const channelName = (message.channel as any).name;
+      if (channelName && this.config.allowedChannelNames?.includes(channelName)) {
+        this.logger.debug(`Channel name ${channelName} is in allowed channel names list`);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if message contains a bot mention
+   */
+  private hasBotMention(message: Message): boolean {
+    // Check if message mentions the bot
+    if (message.mentions?.users?.has(message.client?.user?.id || '')) {
+      this.logger.debug(`Message contains bot mention`);
+      return true;
+    }
+
+    // Check for @everyone mentions (optional - can be configured)
+    // This is useful for when bot should respond to mass mentions
+    if (message.mentions?.everyone) {
+      this.logger.debug(`Message contains @everyone mention`);
       return true;
     }
 

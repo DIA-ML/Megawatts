@@ -6,7 +6,7 @@
  * and health check endpoints.
  */
 
-export { HealthStatus, CheckType } from './types';
+export { HealthStatus, CheckType } from './types.js';
 export type {
   HealthCheckResult,
   HealthCheck,
@@ -18,20 +18,20 @@ export type {
   HealthAlert,
   MemoryUsage,
   CpuUsage
-} from './types';
+} from './types.js';
 
-export { HealthCheckService } from './service';
-export { HealthOrchestrator } from './orchestrator';
-export { HealthEndpoints } from './endpoints';
-export { HealthMiddleware, Request, Response } from './middleware';
-export { defaultHealthConfig, healthCheckThresholds, healthCheckTimeouts } from './config';
+export { HealthCheckService } from './service.js';
+export { HealthOrchestrator } from './orchestrator.js';
+export { HealthEndpoints } from './endpoints.js';
+export { HealthMiddleware, Request, Response } from './middleware.js';
+export { defaultHealthConfig, healthCheckThresholds, healthCheckTimeouts } from './config.js';
 
-import { HealthOrchestrator } from './orchestrator';
-import { HealthEndpoints } from './endpoints';
-import { HealthMiddleware } from './middleware';
-import { HealthMonitorConfig } from './types';
-import { defaultHealthConfig } from './config';
-import { Logger } from '../../utils/logger';
+import { HealthOrchestrator } from './orchestrator.js';
+import { HealthEndpoints } from './endpoints.js';
+import { HealthMiddleware } from './middleware.js';
+import { HealthMonitorConfig } from './types.js';
+import { defaultHealthConfig } from './config.js';
+import { Logger } from '../../utils/logger.js';
 
 /**
  * Health Manager - Main entry point for health monitoring

@@ -21,6 +21,9 @@ RUN npm ci
 # Copy source code
 COPY src/ ./src/
 
+# Build the TypeScript code
+RUN npm run build
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S botuser -u 1001

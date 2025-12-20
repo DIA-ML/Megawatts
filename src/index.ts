@@ -2,8 +2,18 @@ import { Client, GatewayIntentBits, Message } from 'discord.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { HealthManager } from './core/health';
-import { Logger as UtilsLogger } from './utils/logger';
+import dotenv from 'dotenv';
+import { HealthManager } from './core/health/index.js';
+import { Logger as UtilsLogger } from './utils/logger.js';
+
+// Load environment variables FIRST
+dotenv.config();
+
+// Debug: Log environment loading
+console.log('[DEBUG] Environment variables loaded:');
+console.log('[DEBUG] DISCORD_TOKEN exists:', !!process.env.DISCORD_TOKEN);
+console.log('[DEBUG] DISCORD_TOKEN length:', process.env.DISCORD_TOKEN?.length || 0);
+console.log('[DEBUG] DISCORD_CLIENT_ID exists:', !!process.env.DISCORD_CLIENT_ID);
 
 // Custom bot intents for command handling
 enum BotIntent {
@@ -22,12 +32,23 @@ class BotConfig {
   private settings: Map<string, any> = new Map();
 
   constructor() {
+    // Debug: Log environment variable access
+    console.log('[DEBUG] BotConfig constructor - Environment variables:');
+    console.log('[DEBUG] process.env.DISCORD_TOKEN:', process.env.DISCORD_TOKEN ? 'EXISTS' : 'MISSING');
+    console.log('[DEBUG] process.env.DISCORD_CLIENT_ID:', process.env.DISCORD_CLIENT_ID ? 'EXISTS' : 'MISSING');
+    console.log('[DEBUG] process.env.NODE_ENV:', process.env.NODE_ENV || 'development');
+    
     // Load configuration from environment variables
     this.settings.set('DISCORD_TOKEN', process.env.DISCORD_TOKEN || '');
     this.settings.set('DISCORD_CLIENT_ID', process.env.DISCORD_CLIENT_ID || '');
     this.settings.set('NODE_ENV', process.env.NODE_ENV || 'development');
     this.settings.set('HTTP_PORT', process.env.HTTP_PORT || '8080');
     this.settings.set('HTTP_HOST', process.env.HTTP_HOST || '0.0.0.0');
+    
+    // Debug: Log what was actually stored
+    console.log('[DEBUG] BotConfig stored values:');
+    console.log('[DEBUG] DISCORD_TOKEN length:', this.settings.get('DISCORD_TOKEN')?.length || 0);
+    console.log('[DEBUG] DISCORD_CLIENT_ID:', this.settings.get('DISCORD_CLIENT_ID'));
   }
 
   get(key: string): any {
@@ -437,8 +458,13 @@ async function main() {
   const config = new BotConfig();
   
   const token = config.get('DISCORD_TOKEN');
+  console.log('[DEBUG] Main function - Token validation:');
+  console.log('[DEBUG] Token from config:', token ? 'EXISTS' : 'MISSING');
+  console.log('[DEBUG] Token length:', token?.length || 0);
+  
   if (!token) {
     logger.error('DISCORD_TOKEN is required but not set in environment variables');
+    console.log('[DEBUG] Available environment variables:', Object.keys(process.env).filter(key => key.includes('DISCORD')));
     process.exit(1);
   }
 
