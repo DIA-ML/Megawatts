@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: discord-bot-dev
     env_file:
-      - ../.env
+      - C:/Users/lmwat/Megawatts/.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -15,7 +15,6 @@ services:
         condition: service_healthy
     environment:
       - NODE_ENV=development
-      - DISCORD_TOKEN=${DISCORD_TOKEN}
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=${DB_USER:-botuser}
@@ -24,10 +23,6 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-redispass}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - S3_BUCKET=${S3_BUCKET}
-      - S3_REGION=${S3_REGION}
       - LOG_LEVEL=debug
     volumes:
       - ../src:/app/src
@@ -51,9 +46,9 @@ services:
     image: postgres:15-alpine
     container_name: discord-bot-postgres-dev
     environment:
-      - POSTGRES_DB=${DB_NAME:-discord_bot_dev}
-      - POSTGRES_USER=${DB_USER:-botuser}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-botpass}
+      - POSTGRES_DB=discord_bot_dev
+      - POSTGRES_USER=botuser
+      - POSTGRES_PASSWORD=your_password_here
     ports:
       - "5433:5432"
     volumes:
