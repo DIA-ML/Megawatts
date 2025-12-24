@@ -1,5 +1,5 @@
 // Utility to map a string to IntentType enum
-import { IntentType } from './core/processing/types';
+import { IntentType } from './types';
 
 export function toIntentType(type: string): IntentType {
   switch (type.toLowerCase()) {
