@@ -241,8 +241,11 @@ class MinimalDiscordBot {
       timestamp: message.createdAt,
     };
     // Minimal intent and safety for channel filtering
-    const intent = { type: 'help', confidence: 1, entities: [] };
-    const safety = { isSafe: true, riskLevel: 'low', violations: [], confidence: 1, requiresAction: false };
+    // Use IntentType enum for type
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { IntentType, RiskLevel } = require('./core/processing/types');
+    const intent = { type: IntentType.HELP, confidence: 1, entities: [] };
+    const safety = { isSafe: true, riskLevel: RiskLevel.LOW, violations: [], confidence: 1, requiresAction: false };
     const routing = this.messageRouter.routeMessage
       ? await this.messageRouter.routeMessage(message, context, intent, safety)
       : { handler: 'ignore', shouldRespond: false };
