@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import { Logger } from '../../utils/logger';
-import { BotError, SelfEditingError } from '../../types';
+import { Logger } from '../../utils/logger.js';
+import { BotError, SelfEditingError } from '../../types.js';
 import {
   SelfEditingConfig,
   SelfEditingEvent,
@@ -9,7 +9,7 @@ import {
   AuditLog,
   HealthCheck,
   HealthCheckItem
-} from '../../types/self-editing';
+} from '../../types/self-editing.js';
 
 /**
  * Core self-editing engine that orchestrates all self-modification operations

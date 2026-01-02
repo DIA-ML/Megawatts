@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import { Logger } from '../../../utils/logger';
-import { BotError } from '../../../types';
+import { Logger } from '../../../utils/logger.js';
+import { BotError } from '../../../types.js';
 import {
   CodeModification,
   ModificationType,
@@ -11,7 +11,7 @@ import {
   RollbackPlan,
   ProgressTracker,
   AdaptationRecommendation
-} from '../../../types/self-editing';
+} from '../../../types/self-editing.js';
 
 /**
  * Orchestrates code modification operations with safety and validation

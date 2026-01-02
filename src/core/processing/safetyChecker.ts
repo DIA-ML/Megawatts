@@ -1,12 +1,12 @@
 import { Message } from 'discord.js';
 import { Logger } from '../../utils/logger';
-import { 
-  MessageContext, 
-  SafetyCheckResult, 
-  RiskLevel, 
-  SafetyViolation, 
-  ViolationType, 
-  PipelineConfig 
+import {
+  MessageContext,
+  SafetyCheckResult,
+  RiskLevel,
+  SafetyViolation,
+  ViolationType,
+  PipelineConfig
 } from './types';
 
 /**

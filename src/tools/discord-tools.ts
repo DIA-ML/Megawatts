@@ -5,11 +5,11 @@
  * channel operations, and server administration.
  */
 
-import { 
-  Tool, 
-  ToolParameter, 
-  ParameterType, 
-  ToolCategory, 
+import {
+  Tool,
+  ToolParameter,
+  ParameterType,
+  ToolCategory,
   ToolSafety,
   ToolMetadata,
   ToolExample

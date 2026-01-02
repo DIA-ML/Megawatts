@@ -21,6 +21,9 @@ RUN npm ci
 # Copy source code
 COPY src/ ./src/
 
+# Copy scripts directory
+COPY scripts/ ./scripts/
+
 # Build the application
 RUN npm run build
 

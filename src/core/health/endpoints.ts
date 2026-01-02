@@ -1,6 +1,6 @@
-import { HealthOrchestrator } from './orchestrator.js';
-import { HealthEndpointConfig } from './types.js';
-import { Logger } from '../../utils/logger.js';
+import { HealthOrchestrator } from './orchestrator';
+import { HealthEndpointConfig } from './types';
+import { Logger } from '../../utils/logger';
 
 // Define basic request/response interfaces for compatibility
 interface Request {

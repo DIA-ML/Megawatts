@@ -1,6 +1,6 @@
-import { Logger } from '../../../utils/logger';
-import { BotError } from '../../../types';
-import { RollbackPlan, CodeModification } from '../../../types/self-editing';
+import { Logger } from '../../../utils/logger.js';
+import { BotError } from '../../../types.js';
+import { RollbackPlan, CodeModification } from '../../../types/self-editing.js';
 
 /**
  * Manages rollback operations for failed modifications
