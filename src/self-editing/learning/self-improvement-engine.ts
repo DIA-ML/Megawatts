@@ -1,4 +1,4 @@
-import { Logger } from '../../../utils/logger';
+import { Logger } from '../../../utils/logger.js';
 
 /**
  * Self-improvement strategies and execution

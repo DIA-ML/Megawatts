@@ -7,10 +7,10 @@ import {
   HealthMetrics,
   HealthAlert,
   HealthMonitorConfig
-} from './types.js';
-import { HealthCheckService } from './service.js';
-import { defaultHealthConfig } from './config.js';
-import { Logger } from '../../utils/logger.js';
+} from './types';
+import { HealthCheckService } from './service';
+import { defaultHealthConfig } from './config';
+import { Logger } from '../../utils/logger';
 
 declare const process: {
   env: Record<string, string | undefined>;

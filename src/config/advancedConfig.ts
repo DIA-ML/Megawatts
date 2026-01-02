@@ -1,7 +1,8 @@
 import { Logger } from '../utils/logger';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { config as dotenvConfig } from 'dotenv';
+import chokidar from 'chokidar';
 
 // Environment-specific configuration types
 export type Environment = 'development' | 'staging' | 'production' | 'test';
@@ -583,7 +584,7 @@ export class AdvancedConfigManager {
   saveConfiguration(): void {
     try {
       const configData = JSON.stringify(this.config, null, 2);
-      require('fs').writeFileSync(this.configPath, configData, 'utf8');
+      writeFileSync(this.configPath, configData, 'utf8');
       this.logger.info(`Configuration saved to: ${this.configPath}`);
     } catch (error) {
       this.logger.error('Failed to save configuration:', error);
@@ -614,7 +615,6 @@ export class AdvancedConfigManager {
 
   private setupFileWatching(): void {
     if (this.isDevelopment()) {
-      const chokidar = require('chokidar');
       const watcher = chokidar.watch(this.configPath);
       
       watcher.on('change', () => {

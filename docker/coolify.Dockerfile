@@ -31,9 +31,8 @@ COPY package*.json ./
 COPY tsconfig.json ./
 
 # Configure npm for production builds
-RUN npm config set production false \
-    && npm config set cache /tmp/.npm \
-    && npm ci --include=dev \
+RUN npm config set cache /tmp/.npm \
+    && npm ci \
     && npm cache clean --force
 
 # Stage 3: Application builder
@@ -78,9 +77,8 @@ WORKDIR /app
 
 # Copy package files and install only production dependencies
 COPY package*.json ./
-RUN npm config set production true \
-    && npm config set cache /tmp/.npm \
-    && npm ci --only=production \
+RUN npm config set cache /tmp/.npm \
+    && npm ci --omit=dev \
     && npm cache clean --force \
     && chown -R botuser:nodejs /app
 

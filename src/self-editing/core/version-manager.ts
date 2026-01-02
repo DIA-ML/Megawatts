@@ -1,6 +1,6 @@
-import { Logger } from '../../../utils/logger';
-import { BotError } from '../../../types';
-import { Backup, BackupMetadata } from '../../../types/self-editing';
+import { Logger } from '../../../utils/logger.js';
+import { BotError } from '../../../types.js';
+import { Backup, BackupMetadata } from '../../../types/self-editing.js';
 
 /**
  * Manages version control and backup operations for self-editing

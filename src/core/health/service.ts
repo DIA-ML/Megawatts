@@ -5,9 +5,9 @@ import {
   CheckType,
   MemoryUsage,
   CpuUsage
-} from './types.js';
-import { healthCheckTimeouts, healthCheckThresholds } from './config.js';
-import { Logger } from '../../utils/logger.js';
+} from './types';
+import { healthCheckTimeouts, healthCheckThresholds } from './config';
+import { Logger } from '../../utils/logger';
 
 declare const process: {
   memoryUsage(): MemoryUsage;

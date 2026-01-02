@@ -3,10 +3,10 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { HealthManager } from './core/health/index.js';
-import { Logger as UtilsLogger } from './utils/logger.js';
-import { MessageRouter } from './core/processing/messageRouter.js';
-import { DEFAULT_PIPELINE_CONFIG } from './core/processing/types.js';
+import { HealthManager } from './core/health/index';
+import { Logger as UtilsLogger } from './utils/logger';
+import { MessageRouter } from './core/processing/messageRouter';
+import { DEFAULT_PIPELINE_CONFIG, IntentType, RiskLevel } from './core/processing/types';
 
 // Load environment variables FIRST
 dotenv.config();
@@ -314,8 +314,6 @@ class SelfEditingDiscordBot {
     };
     // Minimal intent and safety for channel filtering
     // Use IntentType enum for type
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { IntentType, RiskLevel } = require('./core/processing/types');
     const intent = { type: IntentType.HELP, confidence: 1, entities: [] };
     const safety = { isSafe: true, riskLevel: RiskLevel.LOW, violations: [], confidence: 1, requiresAction: false };
     
