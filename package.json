@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm run build && node dist/index.js",
-    "build": "tsc && node scripts/add-js-extensions.mjs",
+    "build": "tsc-alias",
     "start": "node dist/index.js",
     "minimal": "npm run build-minimal && node dist/minimal-bot.js",
     "build-minimal": "tsc src/minimal-bot.ts --outDir dist --target es2020 --module es2020 --moduleResolution node --esModuleInterop --allowSyntheticDefaultImports --skipLibCheck",
