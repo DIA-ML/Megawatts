@@ -38,8 +38,9 @@ RUN npm config set cache /tmp/.npm \
 # Stage 3: Application builder
 FROM deps-builder AS app-builder
 
-# Copy source code
+# Copy source code and scripts
 COPY src/ ./src/
+COPY scripts/ ./scripts/
 
 # Build the application with optimizations
 RUN npm run build \
