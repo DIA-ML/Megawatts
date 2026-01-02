@@ -25,7 +25,7 @@ COPY src/ ./src/
 COPY scripts/ ./scripts/
 
 # Build the application
-RUN npm run build
+RUN rm -rf dist && npm run build
 
 # Production stage
 FROM node:20-alpine AS production
