@@ -187,7 +187,7 @@ export const DEFAULT_PIPELINE_CONFIG: PipelineConfig = {
   enableLogging: true,
   // Channel filtering and mention detection defaults
   allowedChannels: [], // Empty array means no channel restrictions
-  respondToMentions: true, // Only respond when bot is mentioned
+  respondToMentions: false, // Respond to all messages in allowed channels (not just mentions)
   allowedChannelNames: [] // Empty array means no channel name restrictions - rely on mentions only
 };
 

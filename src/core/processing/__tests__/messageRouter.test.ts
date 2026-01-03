@@ -251,7 +251,7 @@ describe('MessageRouter - Channel Filtering and Mention Detection', () => {
 
   describe('Default Configuration', () => {
     test('should use default configuration values', () => {
-      expect(DEFAULT_PIPELINE_CONFIG.respondToMentions).toBe(true);
+      expect(DEFAULT_PIPELINE_CONFIG.respondToMentions).toBe(false);
       expect(DEFAULT_PIPELINE_CONFIG.allowedChannels).toEqual([]);
       expect(DEFAULT_PIPELINE_CONFIG.allowedChannelNames).toEqual([]);
     });
