@@ -304,6 +304,12 @@ class SelfEditingDiscordBot {
 
   // Message handling with intent recognition
   private async handleMessage(message: Message): Promise<void> {
+    // Early exit for non-command messages
+    if (!message.content.startsWith('!')) {
+      this.logger.debug(`Ignoring non-command message: ${message.content}`);
+      return;
+    }
+    
     // Build context, intent, and safety objects for routing
     const context = {
       userId: message.author.id,
@@ -314,7 +320,7 @@ class SelfEditingDiscordBot {
     };
     // Minimal intent and safety for channel filtering
     // Use IntentType enum for type
-    const intent = { type: IntentType.HELP, confidence: 1, entities: [] };
+    const intent = { type: IntentType.COMMAND, confidence: 1, entities: [] };
     const safety = { isSafe: true, riskLevel: RiskLevel.LOW, violations: [], confidence: 1, requiresAction: false };
     
     // Check routing decision BEFORE any processing
@@ -354,38 +360,43 @@ class SelfEditingDiscordBot {
 
   // Intent handlers
   private async handleIntent(intent: BotIntent, message: Message): Promise<void> {
-    switch (intent) {
-      case BotIntent.Help:
-        await this.handleHelp(message);
-        break;
-      
-      case BotIntent.Ping:
-        await this.handlePing(message);
-        break;
-      
-      case BotIntent.Status:
-        await this.handleStatus(message);
-        break;
-      
-      case BotIntent.Config:
-        await this.handleConfig(message);
-        break;
-      
-      case BotIntent.SelfEdit:
-        await this.handleSelfEdit(message);
-        break;
-      
-      case BotIntent.Analyze:
-        await this.handleAnalyze(message);
-        break;
-      
-      case BotIntent.Optimize:
-        await this.handleOptimize(message);
-        break;
-      
-      default:
-        await this.handleDefault(message);
-        break;
+    try {
+      switch (intent) {
+        case BotIntent.Help:
+          await this.handleHelp(message);
+          break;
+        
+        case BotIntent.Ping:
+          await this.handlePing(message);
+          break;
+        
+        case BotIntent.Status:
+          await this.handleStatus(message);
+          break;
+        
+        case BotIntent.Config:
+          await this.handleConfig(message);
+          break;
+        
+        case BotIntent.SelfEdit:
+          await this.handleSelfEdit(message);
+          break;
+        
+        case BotIntent.Analyze:
+          await this.handleAnalyze(message);
+          break;
+        
+        case BotIntent.Optimize:
+          await this.handleOptimize(message);
+          break;
+        
+        default:
+          await this.handleDefault(message);
+          break;
+      }
+    } catch (error) {
+      this.logger.error(`Error handling command ${intent}:`, error);
+      await message.reply('❌ An error occurred while processing your command.');
     }
   }
 
@@ -406,7 +417,16 @@ class SelfEditingDiscordBot {
       '🔧 Extensible tool framework for custom capabilities\n' +
       '📊 Persistent storage with multi-tier architecture\n' +
       '🛡️ Comprehensive security and privacy protection\n\n' +
-      '\n*Use `!help` for detailed command information*';
+      '\n**🚀 Coming Soon:**\n' +
+      'We\'re continuously expanding the bot\'s capabilities! Additional commands planned for future releases include:\n\n' +
+      '• **Discord Management:** Role, channel, user, message, and webhook management\n' +
+      '• **Self-Editing Operations:** Advanced code modification, refactoring, and deployment\n' +
+      '• **Memory Management:** Context storage, retrieval, and memory optimization\n' +
+      '• **Tool Discovery:** Browse and discover available AI tools and capabilities\n' +
+      '• **Plugin Management:** Install, configure, and manage custom plugins\n' +
+      '• **Analytics:** Usage statistics, performance metrics, and insights\n\n' +
+      'Stay tuned for these and many more enhancements as we evolve the platform!\n\n' +
+      '*Use `!help` for detailed command information*';
     
     await message.reply(response);
   }
