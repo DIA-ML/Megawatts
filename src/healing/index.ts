@@ -22,12 +22,15 @@
 
 // Export all types and interfaces from submodules
 export * from './recoveryStrategies';
-export * from './healingOrchestrator';
-export * from './circuitBreaker';
-export * from './gracefulDegradation';
+export { HealingOrchestrator } from './healingOrchestrator';
+export { CircuitBreaker, CircuitBreakerFactory } from './circuitBreaker';
+export { GracefulDegradationManager, GracefulDegradationFactory } from './gracefulDegradation';
 
 import { Logger } from '../utils/logger';
 import { HealthOrchestrator } from '../core/health/orchestrator';
+import { HealingOrchestrator } from './healingOrchestrator';
+import { CircuitBreakerFactory } from './circuitBreaker';
+import { GracefulDegradationFactory } from './gracefulDegradation';
 
 /**
  * Healing System Configuration
@@ -354,8 +357,5 @@ export async function setupHealingWithHealth(
   healthOrchestrator: HealthOrchestrator,
   config?: Partial<HealingSystemConfig>
 ): Promise<HealingSystem> {
-  return createHealingSystem({
-    ...config,
-    healthOrchestrator
-  }, healthOrchestrator);
+  return createHealingSystem(config, healthOrchestrator);
 }

@@ -327,7 +327,7 @@ export class HealingOrchestrator {
     });
 
     const recoveryPromise = this.performRecovery(context, strategyType);
-    this.recoveryMutex.set(failure.component, recoveryPromise as Promise<void>);
+    this.recoveryMutex.set(failure.component, recoveryPromise);
 
     try {
       const result = await recoveryPromise;

@@ -10,7 +10,7 @@ import {
   ConversationalAIResponse,
 } from '../../types/conversational';
 import { BaseAIProvider } from '../core/ai-provider';
-import { AIConfig } from '../../types/ai';
+import { AIConfiguration } from '../../types/ai';
 import { Logger } from '../../utils/logger';
 
 // ============================================================================
@@ -33,14 +33,14 @@ interface ProviderHealth {
 
 export class ConversationalAIProviderRouter {
   private providers: Map<string, BaseAIProvider> = new Map();
-  private config: AIConfig;
+  private config: AIConfiguration;
   private logger: Logger;
   private providerHealth: Map<string, ProviderHealth> = new Map();
   private defaultProvider: string = 'openai';
   private maxRetries: number = 3;
   private baseRetryDelay: number = 1000; // 1 second
 
-  constructor(config: AIConfig, logger: Logger) {
+  constructor(config: AIConfiguration, logger: Logger) {
     this.config = config;
     this.logger = logger;
     
@@ -164,8 +164,11 @@ export class ConversationalAIProviderRouter {
     }
 
     // Use configured default provider
-    if (this.config.provider) {
-      return this.config.provider;
+    if (this.config.providers && this.config.providers.openai?.enabled) {
+      return 'openai';
+    }
+    if (this.config.providers && this.config.providers.anthropic?.enabled) {
+      return 'anthropic';
     }
 
     return this.defaultProvider;
@@ -400,8 +403,8 @@ export class ConversationalAIProviderRouter {
 
     // If too many consecutive failures, mark as unavailable
     if (health.consecutiveFailures >= 5) {
-      this.logger.error('Provider marked as unavailable due to repeated failures', {
-        provider: providerId,
+      this.logger.error('Provider marked as unavailable due to repeated failures', new Error(`Provider ${providerId} has ${health.consecutiveFailures} consecutive failures`), {
+        providerId,
         failures: health.consecutiveFailures,
       });
     }
@@ -414,14 +417,14 @@ export class ConversationalAIProviderRouter {
     // Note: In a real implementation, this would create actual provider instances
     // For now, we'll track them conceptually
     
-    if (this.config.openai?.apiKey) {
+    if (this.config.providers?.openai?.apiKey) {
       // OpenAI provider would be initialized here
       this.defaultProvider = 'openai';
     }
 
-    if (this.config.anthropic?.apiKey) {
+    if (this.config.providers?.anthropic?.apiKey) {
       // Anthropic provider would be initialized here
-      if (!this.config.openai?.apiKey) {
+      if (!this.config.providers?.openai?.apiKey) {
         this.defaultProvider = 'anthropic';
       }
     }
@@ -574,7 +577,7 @@ export class ConversationalAIProviderRouter {
   /**
    * Update configuration
    */
-  updateConfig(config: Partial<AIConfig>): void {
+  updateConfig(config: Partial<AIConfiguration>): void {
     this.config = { ...this.config, ...config };
     this.logger.info('Configuration updated', { config });
   }
@@ -582,7 +585,7 @@ export class ConversationalAIProviderRouter {
   /**
    * Get current configuration
    */
-  getConfig(): AIConfig {
+  getConfig(): AIConfiguration {
     return { ...this.config };
   }
 }

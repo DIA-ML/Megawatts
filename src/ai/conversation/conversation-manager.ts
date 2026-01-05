@@ -5,18 +5,18 @@
  * for the AI system.
  */
 
-import { 
-  Conversation, 
-  ConversationMessage, 
-  ConversationContext, 
+import {
+  Conversation,
+  ConversationMessage,
+  ConversationContext,
   ConversationMetadata,
   UserPreferences,
   Entity,
   SentimentAnalysis,
   IntentAnalysis,
   MessageProcessing
-} from '../../../types/ai';
-import { Logger } from '../../../utils/logger';
+} from '../../types/ai';
+import { Logger } from '../../utils/logger';
 
 // ============================================================================
 // CONVERSATION MANAGER CLASS

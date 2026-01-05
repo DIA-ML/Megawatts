@@ -18,7 +18,7 @@ import type {
   EmotionalContext,
   MessageHistoryEntry,
 } from '../../types/conversational';
-import type { Logger } from '../../types/logger';
+import type { Logger } from '../../utils/logger';
 
 /**
  * Emotion categories supported by the engine

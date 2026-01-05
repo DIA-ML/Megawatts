@@ -497,10 +497,9 @@ export class DiscordConversationHandler {
    * Get model for current provider
    */
   private getModelForProvider(): string {
-    const providerInfo = this.aiProvider.getProviderInfo();
-    const models = this.aiProvider.getAvailableModels();
-    const defaultModel = models.find(m => m.isDefault);
-    return defaultModel?.id || providerInfo.models[0]?.id || 'gpt-4-turbo';
+    const providers = this.aiProvider.getProviders();
+    const defaultModel = Array.from(providers.values())[0]?.id || 'gpt-4-turbo';
+    return defaultModel?.id || 'gpt-4-turbo';
   }
 
   /**

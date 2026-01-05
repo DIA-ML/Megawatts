@@ -9,7 +9,7 @@ import type {
   ConversationalDiscordConfig,
   SafetyConfig,
 } from '../../types/conversational';
-import type { Logger } from '../../types/logger';
+import type { Logger } from '../../utils/logger';
 
 /**
  * Default emergency stop phrases

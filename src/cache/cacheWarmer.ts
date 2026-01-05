@@ -565,6 +565,7 @@ export class CacheWarmer extends EventEmitter {
           key,
           value: null as any, // Will be fetched by fetchFn
           priority: Math.floor(this.config.predictiveThreshold * 100),
+          retries: 0,
         });
       }
     }

@@ -741,7 +741,7 @@ export class MetricsCollector {
     const getValue = (metric: any, labels: Record<string, string>): number => {
       const values = metric.values || [];
       const match = values.find((v: any) => {
-        return Object.entries(labels).every(([k, v]) => v.metric?.[k] === v);
+        return Object.entries(labels).every(([k, v]) => v === labels[k]);
       });
       return match?.value || 0;
     };

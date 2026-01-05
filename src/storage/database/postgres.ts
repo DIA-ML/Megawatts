@@ -104,8 +104,8 @@ export class PostgresConnectionManager {
       this.logger.debug(`Query executed in ${duration}ms`, { query: text, params });
       return result;
     } catch (error) {
-      this.logger.error('Query execution failed:', { query: text, params, error });
-      throw new DatabaseError(DatabaseErrorCode.QUERY_EXECUTION_FAILED, 'Query execution failed', { error: error instanceof Error ? error.message : String(error) }, text, params);
+      this.logger.error('Query execution failed:', error instanceof Error ? error : new Error(String(error)));
+      throw new DatabaseError(DatabaseErrorCode.QUERY_EXECUTION_FAILED, 'Query execution failed', { error: error instanceof Error ? error.message : String(error) });
     } finally {
       client.release();
     }

@@ -300,7 +300,13 @@ export class OpenAIProvider extends BaseAIProvider {
       metadata: {
         provider: 'openai',
         requestId: request.id,
-        processingTime: Date.now() - request.timestamp.getTime()
+        processingTime: Date.now() - request.timestamp.getTime(),
+        type: 'text',
+        format: 'markdown',
+        length: choice.message?.content?.length || 0,
+        tokens: data.usage?.total_tokens || 0,
+        tokensUsed: data.usage?.total_tokens || 0,
+        modelUsed: data.model
       } as ResponseMetadata
     };
   }
@@ -561,7 +567,13 @@ export class AnthropicProvider extends BaseAIProvider {
       metadata: {
         provider: 'anthropic',
         requestId: request.id,
-        processingTime: Date.now() - request.timestamp.getTime()
+        processingTime: Date.now() - request.timestamp.getTime(),
+        type: 'text',
+        format: 'markdown',
+        length: content.text?.length || 0,
+        tokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
+        tokensUsed: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
+        modelUsed: data.model
       }
     };
   }
@@ -737,7 +749,13 @@ export class LocalModelProvider extends BaseAIProvider {
       metadata: {
         provider: 'local',
         requestId: request.id,
-        processingTime: Date.now() - request.timestamp.getTime()
+        processingTime: Date.now() - request.timestamp.getTime(),
+        type: 'text',
+        format: 'markdown',
+        length: data.choices?.[0]?.message?.content?.length || 0,
+        tokens: data.usage?.total_tokens || 0,
+        tokensUsed: data.usage?.total_tokens || 0,
+        modelUsed: data.model || request.model
       }
     };
   }

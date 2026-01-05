@@ -4,7 +4,6 @@
  * Provides comprehensive context management including:
  * - Trace context extraction and injection
  * - Context propagation across async operations
- * - Baggage propagation
  * - Context storage and retrieval
  * - Async context management
  * 
@@ -16,16 +15,17 @@ import {
   ROOT_CONTEXT,
   trace,
   propagation,
+  context as apiContext,
   TextMapPropagator,
   ContextManager,
   Span,
   SpanContext,
   TraceFlags,
   Baggage,
-  baggage,
   BaggageEntry,
 } from '@opentelemetry/api';
-import { AsyncLocalStorageContextManager } from '@opentelemetry/sdk-trace-node';
+import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
+import { CompositePropagator, W3CTraceContextPropagator, W3CBaggagePropagator } from '@opentelemetry/core';
 import { Logger } from '../utils/logger';
 import { BotError } from '../utils/errors';
 
@@ -76,6 +76,8 @@ export class TraceContextManager {
   private propagator: TextMapPropagator;
   private options: ContextStorageOptions;
   private contextMap: Map<string, Context> = new Map();
+  // Simple baggage storage
+  private baggageStore: Map<string, Map<string, string>> = new Map();
 
   /**
    * Creates a new TraceContextManager instance
@@ -91,13 +93,12 @@ export class TraceContextManager {
 
     // Set up context manager
     this.contextManager = new AsyncLocalStorageContextManager();
-    propagation.setGlobalContextManager(this.contextManager);
+    apiContext.setGlobalContextManager(this.contextManager);
 
     // Get composite propagator
-    this.propagator = propagation.composite(
-      propagation.traceContext(),
-      propagation.baggage()
-    );
+    this.propagator = new CompositePropagator({
+      propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
+    });
 
     this.logger.info('Trace context manager initialized', this.options);
   }
@@ -116,7 +117,7 @@ export class TraceContextManager {
    * @returns The set context
    */
   setCurrentContext(context: Context): Context {
-    return this.contextManager.active(context);
+    return this.contextManager.with(context, () => context);
   }
 
   /**
@@ -152,7 +153,10 @@ export class TraceContextManager {
    */
   extractContext(carrier: Record<string, string>): Context {
     try {
-      const context = this.propagator.extract(this.getCurrentContext(), carrier);
+      const context = this.propagator.extract(this.getCurrentContext(), carrier, {
+        get: (carrier, key) => carrier[key.toLowerCase()],
+        keys: (carrier) => Object.keys(carrier),
+      });
       this.logger.debug('Context extracted from carrier', {
         carrierKeys: Object.keys(carrier),
       });
@@ -170,7 +174,15 @@ export class TraceContextManager {
    */
   injectContext(context: Context, carrier: Record<string, string>): void {
     try {
-      this.propagator.inject(context, carrier);
+      this.propagator.inject(
+        context,
+        carrier,
+        {
+          set: (carrier, key, value) => {
+            carrier[key] = value;
+          }
+        }
+      );
       this.logger.debug('Context injected into carrier', {
         carrierKeys: Object.keys(carrier),
       });
@@ -218,7 +230,8 @@ export class TraceContextManager {
    * @returns Current baggage
    */
   getBaggage(): Baggage {
-    return baggage.getBaggage(this.getCurrentContext()) || baggage.createBaggage();
+    const baggage = propagation.getActiveBaggage();
+    return baggage || propagation.createBaggage({});
   }
 
   /**
@@ -227,7 +240,7 @@ export class TraceContextManager {
    * @returns New context with baggage
    */
   setBaggage(baggage: Baggage): Context {
-    return baggage.setBaggage(this.getCurrentContext(), baggage);
+    return propagation.setBaggage(this.getCurrentContext(), baggage);
   }
 
   /**
@@ -253,9 +266,9 @@ export class TraceContextManager {
     metadata?: string
   ): Context {
     const currentBaggage = this.getBaggage();
-    const entry = { value, metadata };
+    const entry = { value, metadata: metadata ? { __TYPE__: 1 as any } : undefined };
     const updatedBaggage = currentBaggage.setEntry(key, entry);
-    return baggage.setBaggage(this.getCurrentContext(), updatedBaggage);
+    return propagation.setBaggage(this.getCurrentContext(), updatedBaggage);
   }
 
   /**
@@ -265,8 +278,8 @@ export class TraceContextManager {
    */
   removeBaggageEntry(key: string): Context {
     const currentBaggage = this.getBaggage();
-    const updatedBaggage = currentBaggage.deleteEntry(key);
-    return baggage.setBaggage(this.getCurrentContext(), updatedBaggage);
+    const updatedBaggage = currentBaggage.removeEntry(key);
+    return propagation.setBaggage(this.getCurrentContext(), updatedBaggage);
   }
 
   /**
@@ -274,8 +287,8 @@ export class TraceContextManager {
    * @returns New context with cleared baggage
    */
   clearBaggage(): Context {
-    const emptyBaggage = baggage.createBaggage();
-    return baggage.setBaggage(this.getCurrentContext(), emptyBaggage);
+    const emptyBaggage = propagation.createBaggage({});
+    return propagation.setBaggage(this.getCurrentContext(), emptyBaggage);
   }
 
   /**
@@ -286,11 +299,11 @@ export class TraceContextManager {
     const currentBaggage = this.getBaggage();
     const items: BaggageItem[] = [];
 
-    currentBaggage.getAllEntries((key, entry) => {
+    currentBaggage.getAllEntries().forEach(([key, entry]) => {
       items.push({
         key,
         value: entry.value,
-        metadata: entry.metadata,
+        metadata: entry.metadata?.toString(),
       });
     });
 
@@ -491,7 +504,7 @@ export async function withBaggage<T>(
   fn: () => Promise<T>
 ): Promise<T> {
   const contextManager = getDefaultContextManager();
-  const ctx = baggage.setBaggage(contextManager.getCurrentContext(), baggage);
+  const ctx = propagation.setBaggage(contextManager.getCurrentContext(), baggage);
   return contextManager.runWithAsyncContext(ctx, fn);
 }
 
@@ -503,7 +516,7 @@ export async function withBaggage<T>(
 export function createBaggageFromRecord(
   entries: Record<string, string>
 ): Baggage {
-  let baggageInstance = baggage.createBaggage();
+  let baggageInstance = propagation.createBaggage({});
 
   for (const [key, value] of Object.entries(entries)) {
     baggageInstance = baggageInstance.setEntry(key, { value });
@@ -520,7 +533,7 @@ export function createBaggageFromRecord(
 export function getBaggageAsRecord(baggage: Baggage): Record<string, string> {
   const result: Record<string, string> = {};
 
-  baggage.getAllEntries((key, entry) => {
+  baggage.getAllEntries().forEach(([key, entry]) => {
     result[key] = entry.value;
   });
 
