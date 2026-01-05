@@ -34,6 +34,7 @@ enum BotIntent {
   Help = 'help',
   Ping = 'ping',
   Status = 'status',
+  Health = 'health',
   Config = 'config',
   SelfEdit = 'self_edit',
   Analyze = 'analyze',
@@ -196,6 +197,9 @@ class SelfEditingDiscordBot {
   private distributedLock: DistributedLock;
   // Discord bot integration for conversational mode
   private discordBotIntegration: DiscordBotIntegration | null = null;
+  // Local deduplication set to prevent duplicate responses within single instance
+  private processedMessages: Set<string> = new Set();
+  private isProcessing: Map<string, boolean> = new Map();
 
   constructor(
     private token: string,
@@ -280,9 +284,15 @@ class SelfEditingDiscordBot {
         this.updateDiscordHealthStatus(false);
       });
 
+      // Register messageCreate event listener
       this.client.on('messageCreate', async (message) => {
+        this.logger.info(`[EVENT] messageCreate event fired for message ${message.id} from ${message.author.tag} (author.bot: ${message.author.bot})`);
         await this.handleMessage(message);
       });
+      
+      // Log number of event listeners for debugging
+      const listenerCount = this.client.listenerCount('messageCreate');
+      this.logger.info(`[INIT] Registered messageCreate event listener. Total listeners: ${listenerCount}`);
 
       await this.client.login(this.token);
       
@@ -499,93 +509,164 @@ class SelfEditingDiscordBot {
 
   // Message handling with intent recognition and distributed locking
   private async handleMessage(message: Message): Promise<void> {
-    // Check if conversational mode should handle this message
-    if (this.discordBotIntegration && this.discordBotIntegration.shouldUseConversationalMode(message)) {
-      // Handle through conversational integration
-      const response = await this.discordBotIntegration.processMessage(message);
-      
-      if (response) {
-        // Send the conversational response
-        await message.reply(response.content);
-      }
+    this.logger.info(`[HANDLE] Starting handleMessage for message ${message.id}`);
+    
+    // CRITICAL FIX: Check if message is already being processed (local deduplication)
+    // This prevents duplicate processing within the same bot instance
+    if (this.isProcessing.get(message.id)) {
+      this.logger.warn(`[DEDUP-LOCAL] Message ${message.id} is already being processed, skipping`);
       return;
     }
     
-    // Early exit for non-command messages (backward compatibility)
-    if (!message.content.startsWith('!')) {
-      this.logger.debug(`Ignoring non-command message: ${message.content}`);
+    if (this.processedMessages.has(message.id)) {
+      this.logger.warn(`[DEDUP-LOCAL] Message ${message.id} was already processed, skipping`);
       return;
     }
     
-    // Build context, intent, and safety objects for routing
-    const context = {
-      userId: message.author.id,
-      guildId: message.guild?.id,
-      channelId: message.channel.id,
-      messageId: message.id,
-      timestamp: message.createdAt,
-    };
-    // Minimal intent and safety for channel filtering
-    // Use IntentType enum for type
-    const intent = { type: IntentType.COMMAND, confidence: 1, entities: [] };
-    const safety = { isSafe: true, riskLevel: RiskLevel.LOW, violations: [], confidence: 1, requiresAction: false };
+    // Mark message as being processed
+    this.isProcessing.set(message.id, true);
     
-    // Check routing decision BEFORE any processing
-    const routing = this.messageRouter.routeMessage
-      ? await this.messageRouter.routeMessage(message, context, intent, safety)
-      : { handler: 'ignore', shouldRespond: false };
-    
-    // If routing says to ignore or not respond, exit early
-    if (routing.handler === 'ignore' || !routing.shouldRespond) {
-      this.logger.debug(`Ignoring message from ${message.author.username} - routing decision: ${routing.handler}`);
-      return;
-    }
-    
-    // Use distributed lock to ensure only one instance processes this message
-    // Lock key: bot:lock:message:{messageId}
-    // TTL: 30 seconds (enough for message processing, auto-releases if something fails)
-    const lockKey = `message:${message.id}`;
-    const lockAcquired = await this.distributedLock.withLock(
-      lockKey,
-      async () => {
-        // Only log and process if we have the lock
-        this.logger.info(`[LOCKED] Processing message from ${message.author.username}: ${message.content}`);
-        const content = message.content.toLowerCase().trim();
-        let intentType: BotIntent;
-        if (content.startsWith('!help')) {
-          intentType = BotIntent.Help;
-        } else if (content.startsWith('!ping')) {
-          intentType = BotIntent.Ping;
-        } else if (content.startsWith('!status')) {
-          intentType = BotIntent.Status;
-        } else if (content.startsWith('!config')) {
-          intentType = BotIntent.Config;
-        } else if (content.startsWith('!self_edit')) {
-          intentType = BotIntent.SelfEdit;
-        } else if (content.startsWith('!analyze')) {
-          intentType = BotIntent.Analyze;
-        } else if (content.startsWith('!optimize')) {
-          intentType = BotIntent.Optimize;
-        } else {
-          intentType = BotIntent.Help;
-        }
-        await this.handleIntent(intentType, message);
-      },
-      30 // 30 second TTL
-    );
+    try {
+      // Use distributed lock to ensure only one instance processes this message
+      // Lock key: bot:lock:message:{messageId}
+      // TTL: 30 seconds (enough for message processing, auto-releases if something fails)
+      const lockKey = `message:${message.id}`;
+      const lockAcquired = await this.distributedLock.withLock(
+        lockKey,
+        async () => {
+          // Deduplication: Check if this message has already been processed (using Redis for cross-instance deduplication)
+          const dedupKey = `processed:${message.id}`;
+          const alreadyProcessed = await this.redis.get(dedupKey);
+          
+          if (alreadyProcessed) {
+            this.logger.warn(`[DEDUP-REDIS] Skipping already processed message: ${message.id}`);
+            return;
+          }
+          
+          // Mark message as processed in Redis (with 5 minute TTL)
+          await this.redis.set(dedupKey, '1', 300);
+          this.logger.info(`[DEDUP-REDIS] Marked message ${message.id} as processed in Redis`);
+          
+          // Also mark in local set as processed
+          this.processedMessages.add(message.id);
+          
+          // Only log and process if we have the lock and message hasn't been processed
+          this.logger.info(`[LOCKED] Processing message from ${message.author.username}: ${message.content}`);
+          
+          this.logger.info(`[CONV] Checking conversational mode (integration exists: ${!!this.discordBotIntegration})`);
+          this.logger.info(`[DEBUG] Message content: "${message.content}"`);
+          this.logger.info(`[DEBUG] Conversational mode enabled: ${this.discordBotIntegration?.isConversationalMode()}`);
+          
+          // Check if conversational mode should handle this message
+          const shouldUseConv = this.discordBotIntegration && this.discordBotIntegration.shouldUseConversationalMode(message);
+          this.logger.info(`[DEBUG] shouldUseConversationalMode result: ${shouldUseConv}`);
+          
+          // CRITICAL FIX: For commands, always use command handler, not conversational mode
+          // This prevents duplicate responses when both modes could process the same message
+          const isCommand = message.content.startsWith('!');
+          if (shouldUseConv && !isCommand) {
+            this.logger.info(`[CONV] Using conversational mode for message ${message.id}`);
+            // Handle through conversational integration
+            this.logger.info(`[CONV] Calling processMessage for message ${message.id}`);
+            const response = await this.discordBotIntegration.processMessage(message);
+            
+            this.logger.info(`[CONV] processMessage returned response: ${response ? 'YES' : 'NO'} (length: ${response?.content?.length || 0})`);
+            
+            if (response) {
+              // Send the conversational response
+              await message.reply(response.content);
+              this.logger.info(`[CONV] Conversational reply sent for message ${message.id}`);
+            }
+            this.logger.info(`[CONV] Returning from conversational mode for message ${message.id}`);
+            return;
+          }
+          
+          // If it's a command, skip conversational mode entirely
+          if (isCommand) {
+            this.logger.info(`[CMD-SKIP-CONV] Command message detected, skipping conversational mode`);
+          }
+          
+          // Early exit for non-command messages (backward compatibility)
+          if (!message.content.startsWith('!')) {
+            this.logger.info(`[CMD] Ignoring non-command message: ${message.content} (message ${message.id})`);
+            return;
+          }
+          
+          // Build context, intent, and safety objects for routing
+          const context = {
+            userId: message.author.id,
+            guildId: message.guild?.id,
+            channelId: message.channel.id,
+            messageId: message.id,
+            timestamp: message.createdAt,
+          };
+          // Minimal intent and safety for channel filtering
+          // Use IntentType enum for type
+          const intent = { type: IntentType.COMMAND, confidence: 1, entities: [] };
+          const safety = { isSafe: true, riskLevel: RiskLevel.LOW, violations: [], confidence: 1, requiresAction: false };
+          
+          // Check routing decision BEFORE any processing
+          const routing = this.messageRouter.routeMessage
+            ? await this.messageRouter.routeMessage(message, context, intent, safety)
+            : { handler: 'ignore', shouldRespond: false };
+          
+          // DEBUG: Log routing decision for help command
+          this.logger.info(`[DEBUG-ROUTING] Routing decision for message ${message.id}: handler=${routing.handler}, shouldRespond=${routing.shouldRespond}`);
+          
+          // If routing says to ignore or not respond, exit early
+          if (routing.handler === 'ignore' || !routing.shouldRespond) {
+            this.logger.debug(`Ignoring message from ${message.author.username} - routing decision: ${routing.handler}`);
+            return;
+          }
+          
+          const content = message.content.toLowerCase().trim();
+          let intentType: BotIntent;
+          if (content.startsWith('!help')) {
+            intentType = BotIntent.Help;
+          } else if (content.startsWith('!ping')) {
+            intentType = BotIntent.Ping;
+          } else if (content.startsWith('!status')) {
+            intentType = BotIntent.Status;
+          } else if (content.startsWith('!health')) {
+            intentType = BotIntent.Health;
+          } else if (content.startsWith('!config')) {
+            intentType = BotIntent.Config;
+          } else if (content.startsWith('!self_edit')) {
+            intentType = BotIntent.SelfEdit;
+          } else if (content.startsWith('!analyze')) {
+            intentType = BotIntent.Analyze;
+          } else if (content.startsWith('!optimize')) {
+            intentType = BotIntent.Optimize;
+          } else {
+            intentType = BotIntent.Help;
+          }
+          await this.handleIntent(intentType, message);
+        },
+        30 // 30 second TTL
+      );
 
-    // If lock was not acquired, another instance is handling this message
-    if (lockAcquired === null) {
-      this.logger.debug(`Skipping message ${message.id} - already being processed by another instance`);
+      // If lock was not acquired, another instance is handling this message
+      if (lockAcquired === null) {
+        this.logger.debug(`Skipping message ${message.id} - already being processed by another instance`);
+      }
+    } finally {
+      // Always clear the processing flag, even if an error occurred
+      this.isProcessing.delete(message.id);
     }
   }
 
   // Intent handlers
   private async handleIntent(intent: BotIntent, message: Message): Promise<void> {
+    // DEBUG: Log when handleIntent is called
+    this.logger.info(`[DEBUG-HANDLE] handleIntent called with intent=${intent} for message ${message.id}`);
+    
     try {
       switch (intent) {
         case BotIntent.Help:
+          // DEBUG: Log before calling handleHelp
+          this.logger.info(`[DEBUG-HANDLE] About to call handleHelp for message ${message.id}`);
           await this.handleHelp(message);
+          this.logger.info(`[DEBUG-HANDLE] handleHelp returned for message ${message.id}`);
           break;
         
         case BotIntent.Ping:
@@ -594,6 +675,10 @@ class SelfEditingDiscordBot {
         
         case BotIntent.Status:
           await this.handleStatus(message);
+          break;
+        
+        case BotIntent.Health:
+          await this.handleHealth(message);
           break;
         
         case BotIntent.Config:
@@ -624,11 +709,15 @@ class SelfEditingDiscordBot {
 
   // Basic command handlers
   private async handleHelp(message: Message): Promise<void> {
+    // DEBUG: Log when handleHelp is called
+    this.logger.info(`[DEBUG-HELP] handleHelp called for message ${message.id}`);
+    
     const response = '🤖 **Self-Editing Discord Bot v1.0.0**\n\n' +
       '**Available Commands:**\n' +
       '• `!help` - Show this help message\n' +
       '• `!ping` - Check bot status\n' +
       '• `!status` - Show bot status\n' +
+      '• `!health` - Check bot health status\n' +
       '• `!config` - Configuration management\n' +
       '• `!self_edit` - Self-modification commands\n' +
       '• `!analyze` - Analysis commands\n' +
@@ -650,7 +739,11 @@ class SelfEditingDiscordBot {
       'Stay tuned for these and many more enhancements as we evolve the platform!\n\n' +
       '*Use `!help` for detailed command information*';
     
+    // DEBUG: Log before sending reply
+    this.logger.info(`[DEBUG-HELP] About to send reply for message ${message.id}`);
     await message.reply(response);
+    // DEBUG: Log after sending reply
+    this.logger.info(`[DEBUG-HELP] Reply sent for message ${message.id}`);
   }
 
   private async handlePing(message: Message): Promise<void> {
@@ -659,14 +752,53 @@ class SelfEditingDiscordBot {
   }
 
   private async handleStatus(message: Message): Promise<void> {
-    const response = '🟢 **Bot Status:**\n' +
-      '🔧 **Core Systems:** ✅ Online\n' +
-      '🤖 **AI Integration:** ✅ Connected\n' +
-      '💾 **Storage:** ✅ Active\n' +
-      '🔧 **Configuration:** ✅ Loaded\n' +
-      '📊 **Self-Modification:** ✅ Ready\n';
+    const guilds = this.client.guilds.cache.size;
+    const uptime = Math.round(process.uptime());
+    const memUsage = process.memoryUsage();
+    const memUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+    const response = `🟢 **Bot Status:**
+
+🔧 **Connection:** ✅ Online
+🌐 **Guilds:** ${guilds}
+⏱️ **Uptime:** ${uptime} seconds
+💾 **Memory Usage:** ${memUsedMB}MB
+🏓 **API Latency:** ${this.client.ws.ping}ms
+👤 **Bot User:** ${this.client.user?.tag}`;
     
     await message.reply(response);
+  }
+
+  private async handleHealth(message: Message): Promise<void> {
+    try {
+      const health = await this.healthManager.runHealthChecks();
+      const status = health.status === 'healthy' ? '🟢' : health.status === 'degraded' ? '🟡' : '🔴';
+      const response = `${status} **Health Check Results:**
+
+**Overall Status:** ${health.status}
+**Uptime:** ${Math.round(health.uptime / 1000)}s
+**Version:** ${health.version}
+
+**Summary:**
+• Total Checks: ${health.summary.total}
+• ✅ Healthy: ${health.summary.healthy}
+• ⚠️ Degraded: ${health.summary.degraded}
+• ❌ Unhealthy: ${health.summary.unhealthy}
+• 🔴 Critical: ${health.summary.critical}
+
+**Detailed Checks:**
+${health.checks.map((check) => {
+  const checkStatus = check.status === 'healthy' ? '✅' : check.status === 'degraded' ? '⚠️' : '❌';
+  const details = check.details ? JSON.stringify(check.details).substring(0, 80) : '';
+  return `• ${checkStatus} ${check.name}: ${check.message || check.status}${details ? ` - ${details}` : ''}`;
+}).join('\n')}
+
+Health server available at: http://${this.config.get('HTTP_HOST')}:${this.config.get('HTTP_PORT')}/health`;
+      
+      await message.reply(response);
+    } catch (error) {
+      this.logger.error('Failed to get health status:', error);
+      await message.reply('❌ Failed to get health status');
+    }
   }
 
   private async handleConfig(message: Message): Promise<void> {

@@ -79,7 +79,12 @@ export class DiscordConversationHandler {
         messageId: message.id,
         userId: message.author.id,
         channelId: message.channelId,
+        content: message.content,
       });
+
+      // DEBUG: Log if message is a command
+      const isCommand = message.content.startsWith('!');
+      this.logger.info(`[DEBUG-CONV] Message "${message.content}" is command: ${isCommand}`);
 
       // Check if conversational mode is enabled
       if (!this.config.enabled) {
@@ -89,6 +94,20 @@ export class DiscordConversationHandler {
           metadata: {
             skipped: true,
             reason: 'Conversational mode is disabled',
+          },
+        };
+      }
+
+      // Check if message is a command (starts with !)
+      // In hybrid mode, commands should be handled by the command handler, not conversational mode
+      if (message.content.startsWith('!')) {
+        this.logger.info(`[CONV-SKIP] Skipping command message: "${message.content}" - should be handled by command handler`);
+        return {
+          content: '',
+          tone: 'friendly',
+          metadata: {
+            skipped: true,
+            reason: 'Command message - should be handled by command handler',
           },
         };
       }

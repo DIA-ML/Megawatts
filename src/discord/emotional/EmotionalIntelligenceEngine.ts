@@ -79,8 +79,6 @@ const SENTIMENT_LEXICON: Record<string, number> = {
   // Negative words
   'sad': -0.7,
   'angry': -0.8,
-  'angry': -0.8,
-  'angry': -0.8,
   'hate': -0.9,
   'terrible': -0.8,
   'awful': -0.8,
@@ -184,7 +182,6 @@ const SENTIMENT_LEXICON: Record<string, number> = {
   'unreasonable': -0.6,
   'ridiculous': -0.5,
   'absurd': -0.5,
-  'crazy': -0.5,
   'insane': -0.6,
   'mad': -0.6,
   'crazy': -0.5,
