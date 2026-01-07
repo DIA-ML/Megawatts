@@ -150,11 +150,10 @@ export class LRUPolicy<T = any> {
    */
   private evict(): void {
     if (this.accessOrder.length === 0) return;
-
+    
     const lruKey = this.accessOrder.shift()!;
-    const evicted = this.cache.delete(lruKey);
+    this.cache.delete(lruKey);
     this.logger.debug(`Evicted LRU key: ${lruKey}`);
-    return evicted;
   }
 
   /**
@@ -734,7 +733,11 @@ export class CachePolicyManager<T = any> {
   getPolicyStats(): any {
     const policy = this.policies.get(this.currentPolicy);
     if (!policy) return null;
-    return policy.getStats();
+    // Check if policy has getStats method
+    if ('getStats' in policy) {
+      return (policy as any).getStats();
+    }
+    return null;
   }
 
   /**

@@ -1,5 +1,5 @@
 /**
- * Simple Health Manager for minimal bot
+ * Simple Health Manager
  * Avoids complex dependencies and module resolution issues
  */
 

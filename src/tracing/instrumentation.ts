@@ -186,7 +186,9 @@ export class TracingInstrumentation {
 
     // Register all instrumentations
     if (instrumentations.length > 0) {
-      registerInstrumentations(instrumentations);
+      registerInstrumentations({
+        instrumentations,
+      });
       this.logger.info('Instrumentations registered', {
         count: instrumentations.length,
         types: instrumentations.map((i: any) => i.instrumentationName),
@@ -217,9 +219,8 @@ export class TracingInstrumentation {
    * @returns PostgreSQL instrumentation instance
    */
   private setupDatabaseInstrumentation(): PgInstrumentation {
-    const pgConfig: PgInstrumentationConfig = {
+    const pgConfig: any = {
       enhancedDatabaseReporting: true,
-      collectParameters: !this.config.sanitizeQueries,
     };
 
     return new PgInstrumentation(pgConfig);

@@ -5,13 +5,19 @@
  * support for OpenAI, Anthropic, and local models.
  */
 
-import { 
-  AIProvider, 
-  AIModel, 
-  AICapability, 
-  ProviderConfig, 
+import {
+  AIProvider,
+  AIModel,
+  AICapability,
+  ProviderConfig,
   RateLimit,
-  ModelCapability 
+  ModelCapability,
+  AIRequest,
+  AIMessage,
+  AIResponse,
+  TokenUsage,
+  ResponseMetadata,
+  ValidationResult
 } from '../../types/ai';
 import { Logger } from '../../utils/logger';
 
@@ -127,16 +133,16 @@ export class OpenAIProvider extends BaseAIProvider {
   getAvailableModels(): AIModel[] {
     return [
       {
-        id: 'gpt-4-turbo',
-        name: 'GPT-4 Turbo',
+        id: 'gpt-3.5-turbo',
+        name: 'GPT-3.5 Turbo',
         provider: 'openai',
-        type: 'gpt-4-turbo',
-        maxTokens: 128000,
-        contextWindow: 128000,
-        costPerToken: 0.00003,
+        type: 'gpt-3.5-turbo',
+        maxTokens: 16384,
+        contextWindow: 16384,
+        costPerToken: 0.000002,
         cost: {
-          input: 0.00003,
-          output: 0.00006,
+          input: 0.000002,
+          output: 0.000004,
           currency: 'USD'
         },
         capabilities: [
@@ -254,7 +260,7 @@ export class OpenAIProvider extends BaseAIProvider {
 
   private buildOpenAIRequest(request: AIRequest): any {
     return {
-      model: request.model || 'gpt-4-turbo',
+      model: request.model || 'gpt-3.5-turbo',
       messages: request.messages.map(msg => ({
         role: msg.role,
         content: msg.content,
@@ -294,8 +300,14 @@ export class OpenAIProvider extends BaseAIProvider {
       metadata: {
         provider: 'openai',
         requestId: request.id,
-        processingTime: Date.now() - request.timestamp.getTime()
-      }
+        processingTime: Date.now() - request.timestamp.getTime(),
+        type: 'text',
+        format: 'markdown',
+        length: choice.message?.content?.length || 0,
+        tokens: data.usage?.total_tokens || 0,
+        tokensUsed: data.usage?.total_tokens || 0,
+        modelUsed: data.model
+      } as ResponseMetadata
     };
   }
 }
@@ -362,16 +374,16 @@ export class AnthropicProvider extends BaseAIProvider {
   getAvailableModels(): AIModel[] {
     return [
       {
-        id: 'claude-3-opus',
-        name: 'Claude 3 Opus',
+        id: 'claude-sonnet-4-5-20250929',
+        name: 'Claude Sonnet 4.5',
         provider: 'anthropic',
-        type: 'claude-3-opus',
+        type: 'claude-sonnet-4-5',
         maxTokens: 200000,
         contextWindow: 200000,
-        costPerToken: 0.000075,
+        costPerToken: 0.000015,
         cost: {
-          input: 0.000075,
-          output: 0.00015,
+          input: 0.000015,
+          output: 0.00003,
           currency: 'USD'
         },
         capabilities: [
@@ -495,11 +507,17 @@ export class AnthropicProvider extends BaseAIProvider {
   }
 
   private buildAnthropicRequest(request: AIRequest): any {
-    // Convert OpenAI format to Anthropic format
+    // Extract system messages and concatenate them
+    const systemMessages = request.messages
+      .filter(msg => msg.role === 'system')
+      .map(msg => msg.content)
+      .join('\n\n');
+    
+    // Convert non-system messages to Anthropic format
     const messages = this.convertMessagesToAnthropicFormat(request.messages);
     
-    return {
-      model: request.model || 'claude-3-opus',
+    const requestBody: any = {
+      model: request.model || 'claude-sonnet-4-5-20250929',
       max_tokens: request.maxTokens || 1000,
       messages,
       temperature: request.temperature,
@@ -508,6 +526,13 @@ export class AnthropicProvider extends BaseAIProvider {
       ...(request.tool_choice && { tool_choice: request.tool_choice }),
       stream: false
     };
+    
+    // Add system parameter if there are system messages
+    if (systemMessages) {
+      requestBody.system = systemMessages;
+    }
+    
+    return requestBody;
   }
 
   private convertMessagesToAnthropicFormat(messages: AIMessage[]): any[] {
@@ -555,7 +580,13 @@ export class AnthropicProvider extends BaseAIProvider {
       metadata: {
         provider: 'anthropic',
         requestId: request.id,
-        processingTime: Date.now() - request.timestamp.getTime()
+        processingTime: Date.now() - request.timestamp.getTime(),
+        type: 'text',
+        format: 'markdown',
+        length: content.text?.length || 0,
+        tokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
+        tokensUsed: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
+        modelUsed: data.model
       }
     };
   }
@@ -731,7 +762,13 @@ export class LocalModelProvider extends BaseAIProvider {
       metadata: {
         provider: 'local',
         requestId: request.id,
-        processingTime: Date.now() - request.timestamp.getTime()
+        processingTime: Date.now() - request.timestamp.getTime(),
+        type: 'text',
+        format: 'markdown',
+        length: data.choices?.[0]?.message?.content?.length || 0,
+        tokens: data.usage?.total_tokens || 0,
+        tokensUsed: data.usage?.total_tokens || 0,
+        modelUsed: data.model || request.model
       }
     };
   }
@@ -741,63 +778,10 @@ export class LocalModelProvider extends BaseAIProvider {
 // SUPPORTING TYPES
 // ============================================================================
 
-export interface AIRequest {
-  id: string;
-  model?: string;
-  messages: AIMessage[];
-  maxTokens?: number;
-  temperature?: number;
-  topP?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  functions?: any[];
-  function_call?: any;
-  tools?: any[];
-  tool_choice?: any;
-  timestamp: Date;
-  userId?: string;
-  conversationId?: string;
-}
-
-export interface AIMessage {
-  role: 'system' | 'user' | 'assistant' | 'function' | 'tool';
-  content: string;
-  name?: string;
-  function_call?: any;
-  tool_calls?: any[];
-  tool_call_id?: string;
-}
-
-export interface AIResponse {
-  id: string;
-  model: string;
-  created: Date;
-  content: string;
-  role: string;
-  finishReason?: string;
-  usage: TokenUsage;
-  functionCall?: any;
-  toolCalls?: any[];
-  metadata: ResponseMetadata;
-}
-
-export interface TokenUsage {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-}
-
-export interface ResponseMetadata {
+export interface ProviderResponseMetadata {
   provider: string;
   requestId: string;
   processingTime: number;
-  [key: string]: any;
-}
-
-export interface ValidationResult {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
 }
 
 export interface AIError {

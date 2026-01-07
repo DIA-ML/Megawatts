@@ -394,7 +394,7 @@ export class RedisConnectionManager {
       throw new CacheError(
         CacheErrorCode.SET_FAILED,
         'Redis hot tier SET operation failed',
-        { error: error instanceof Error ? error.message : String(error), ttl },
+        { error: error instanceof Error ? error.message : String(error), ttl: this.getHotTierTTLByDataType(dataType) },
         key,
         'SET_HOT_TIER'
       );

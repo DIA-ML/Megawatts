@@ -5,16 +5,17 @@
  * for AI interactions including multi-turn conversations and user history.
  */
 
-import { 
-  Conversation, 
-  ConversationMessage, 
-  ConversationContext, 
-  Entity, 
+import {
+  Conversation,
+  ConversationMessage,
+  ConversationContext,
+  Entity,
   SentimentAnalysis,
   UserPreferences,
   Intent,
   ConversationFlow,
-  TemporalContext
+  TemporalContext,
+  SentimentTemporal
 } from '../../types/ai';
 import { Logger } from '../../utils/logger';
 
@@ -174,7 +175,7 @@ export class ContextManager {
         results.conversations.push({
           conversationId: convId,
           matches,
-          relevance: this.calculateRelevance(matches, query),
+          relevance: this.calculateRelevance(matches, query.query),
           preview: this.generatePreview(convState.messages, matches)
         });
       }
@@ -215,10 +216,12 @@ export class ContextManager {
       messages: [],
       entities: new Map(),
       sentiment: {
-        overall: { positive: 0, negative: 0, neutral: 1, compound: 0 },
+        sentiment: { positive: 0, negative: 0, neutral: 1, compound: 0 },
         emotions: [],
         confidence: 0,
-        temporal: { trend: 'stable', changeRate: 0, predictions: [] }
+        approach: 'rule_based',
+        reasoning: [],
+        temporal: { overall: { positive: 0, negative: 0, neutral: 1, compound: 0 }, trend: 'stable', changeRate: 0, predictions: [] }
       },
       summary: '',
       lastActivity: new Date(),
@@ -244,13 +247,15 @@ export class ContextManager {
     return {
       summary: state.summary,
       entities,
-      sentiment: state.sentiment,
-      intent: this.inferPrimaryIntent(state),
-      topics: this.extractTopics(state),
+      sentiment: state.sentiment.temporal,
+      intents: this.inferPrimaryIntent(state) ? [this.inferPrimaryIntent(state)!.type] : [],
+      userPreferences: await this.getUserPreferencesForConversation(state),
+      language: 'en',
+      timezone: 'UTC',
+      platform: 'discord',
       tokenCount: state.tokenCount,
       messageCount: state.messageCount,
-      lastActivity: state.lastActivity,
-      userPreferences: await this.getUserPreferencesForConversation(state)
+      lastActivity: state.lastActivity
     };
   }
 
@@ -343,6 +348,8 @@ export class ContextManager {
     return {
       userId,
       preferences: {
+        id: userId,
+        userId: userId,
         language: 'en',
         timezone: 'UTC',
         communicationStyle: {
@@ -350,6 +357,34 @@ export class ContextManager {
           verbosity: 'adaptive',
           tone: 'friendly',
           responseSpeed: 'normal'
+        },
+        privacy: {
+          dataCollection: true,
+          conversationHistory: true,
+          personalization: true,
+          analytics: true,
+          sharing: true
+        },
+        accessibility: {
+          fontSize: 'medium',
+          highContrast: false,
+          screenReader: false,
+          keyboardNavigation: false,
+          reducedMotion: false,
+          colorBlindMode: 'none'
+        },
+        aiPreferences: {
+          model: 'gpt-3.5-turbo',
+          temperature: 0.7,
+          maxTokens: 1000,
+          responseStyle: 'balanced',
+          toolUsage: 'balanced'
+        },
+        notifications: {
+          enabled: true,
+          types: [],
+          frequency: 'immediate',
+          channels: []
         },
         notificationSettings: {
           enabled: true,
@@ -363,21 +398,8 @@ export class ContextManager {
             weekends: true
           }
         },
-        privacySettings: {
-          dataCollection: true,
-          analytics: true,
-          personalization: true,
-          dataRetention: 30,
-          sharingPermissions: []
-        },
-        accessibilitySettings: {
-          fontSize: 'medium',
-          highContrast: false,
-          screenReader: false,
-          keyboardNavigation: false,
-          reducedMotion: false
-        },
-        customSettings: {}
+        customSettings: {},
+        updatedAt: new Date()
       },
       interactionHistory: [],
       learningData: {
@@ -448,9 +470,11 @@ export class ContextManager {
     else timeOfDay = 'night';
     
     const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][now.getDay()];
-    const season = ['winter', 'spring', 'summer', 'fall'][Math.floor(now.getMonth() / 3)];
+    const season = ['winter', 'spring', 'summer', 'fall'][Math.floor(now.getMonth() / 3)] as 'winter' | 'spring' | 'summer' | 'fall';
     
     return {
+      timestamp: now,
+      timezone: 'UTC',
       timeOfDay,
       dayOfWeek,
       season,
@@ -505,7 +529,8 @@ export class ContextManager {
     const message = messages.find(msg => msg.id === firstMatch.messageId);
     
     if (message) {
-      const startIndex = Math.max(0, message.content.toLowerCase().indexOf(matches[0].query.toLowerCase()) - 50);
+      const queryStr = (matches[0] as any).query || '';
+      const startIndex = Math.max(0, message.content.toLowerCase().indexOf(queryStr.toLowerCase()) - 50);
       const endIndex = startIndex + 200;
       return message.content.substring(startIndex, endIndex);
     }
@@ -526,19 +551,10 @@ export class ContextManager {
         subIntents: [],
         context: {
           previousIntents: [],
-          userHistory: {
-            commonIntents: ['question'],
-            intentPatterns: [],
-            successRate: { question: 0.8 },
-            lastUsed: { question: new Date() }
-          },
-          conversationFlow: {
-            stage: 'development',
-            progress: 0.3,
-            expectedNextIntents: ['answer'],
-            blockers: []
-          },
-          temporalContext: this.buildTemporalContext()
+          userPreferences: undefined,
+          conversationHistory: [],
+          currentEntities: [],
+          platformContext: { platform: 'discord', channelId: '', userId: '' }
         }
       };
     }
@@ -566,6 +582,8 @@ export class ContextManager {
     // Get preferences from all participants
     const participants = Array.from(state.metadata.participants);
     const preferences: UserPreferences = {
+      id: '',
+      userId: '',
       language: 'en',
       timezone: 'UTC',
       communicationStyle: {
@@ -574,33 +592,36 @@ export class ContextManager {
         tone: 'friendly',
         responseSpeed: 'normal'
       },
-      notificationSettings: {
-        enabled: true,
-        types: ['message'],
-        frequency: 'immediate',
-        channels: ['discord'],
-        quietHours: {
-          enabled: false,
-          startTime: '22:00',
-          endTime: '08:00',
-          weekends: true
-        }
-      },
-      privacySettings: {
+      privacy: {
         dataCollection: true,
-        analytics: true,
+        conversationHistory: true,
         personalization: true,
-        dataRetention: 30,
-        sharingPermissions: []
+        analytics: true,
+        sharing: true
       },
-      accessibilitySettings: {
+      accessibility: {
         fontSize: 'medium',
         highContrast: false,
         screenReader: false,
         keyboardNavigation: false,
-        reducedMotion: false
+        reducedMotion: false,
+        colorBlindMode: 'none'
       },
-      customSettings: {}
+      aiPreferences: {
+        model: 'gpt-3.5-turbo',
+        temperature: 0.7,
+        maxTokens: 1000,
+        responseStyle: 'balanced',
+        toolUsage: 'balanced'
+      },
+      notifications: {
+        enabled: true,
+        types: [],
+        frequency: 'immediate',
+        channels: []
+      },
+      customSettings: {},
+      updatedAt: new Date()
     };
     
     // Merge preferences from all participants
@@ -628,11 +649,16 @@ export class ContextManager {
         type: 'url',
         value: url,
         confidence: 0.9,
-        startIndex: content.indexOf(url),
-        endIndex: content.indexOf(url) + url.length,
+        source: 'text',
+        relationships: [],
+        mentions: [],
         metadata: {
           canonical: url,
-          attributes: { protocol: url.startsWith('https') ? 'https' : 'http' }
+          aliases: [],
+          attributes: { protocol: url.startsWith('https') ? 'https' : 'http' },
+          verified: false,
+          source: 'text',
+          extractedAt: new Date()
         }
       });
     }
@@ -646,11 +672,16 @@ export class ContextManager {
         type: 'person',
         value: mention[1],
         confidence: 0.8,
-        startIndex: content.indexOf(mention[0]),
-        endIndex: content.indexOf(mention[0]) + mention[0].length,
+        source: 'text',
+        relationships: [],
+        mentions: [],
         metadata: {
           canonical: mention[1],
-          attributes: { platform: 'discord' }
+          aliases: [],
+          attributes: { platform: 'discord' },
+          verified: false,
+          source: 'text',
+          extractedAt: new Date()
         }
       });
     }
@@ -678,6 +709,9 @@ export class ContextManager {
     const compound = positive - negative;
     
     return {
+      sentiment: { positive, negative, neutral: 1 - positive - negative, compound },
+      approach: 'rule_based',
+      reasoning: [],
       overall: { positive, negative, neutral: 1 - positive - negative, compound },
       emotions: [
         { emotion: 'joy', score: positive * 0.1, confidence: 0.6 },
@@ -685,6 +719,7 @@ export class ContextManager {
       ],
       confidence: 0.6,
       temporal: {
+        overall: { positive, negative, neutral: 1 - positive - negative, compound },
         trend: 'stable',
         changeRate: 0,
         predictions: []
@@ -695,6 +730,7 @@ export class ContextManager {
   private analyzeSentimentTrend(state: ConversationState): SentimentTemporal {
     if (state.messages.length < 3) {
       return {
+        overall: { positive: 0, negative: 0, neutral: 1, compound: 0 },
         trend: 'stable',
         changeRate: 0,
         predictions: []
@@ -716,6 +752,7 @@ export class ContextManager {
     else trend = 'declining';
     
     return {
+      overall: { positive: 0, negative: 0, neutral: 1, compound: avgSentiment },
       trend,
       changeRate,
       predictions: []
@@ -895,10 +932,14 @@ export class ContextManager {
     const compound = positive - negative;
     
     return {
+      sentiment: { positive, negative, neutral: 1 - positive - negative, compound },
+      approach: 'rule_based',
+      reasoning: [],
       overall: { positive, negative, neutral: 1 - positive - negative, compound },
       emotions: [],
       confidence: 0.5,
       temporal: {
+        overall: { positive, negative, neutral: 1 - positive - negative, compound },
         trend: 'stable',
         changeRate: 0,
         predictions: []

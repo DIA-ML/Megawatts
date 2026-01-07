@@ -15,20 +15,15 @@
 import {
   SpanExporter,
   ReadableSpan,
-  ExportResult,
-  ExportResultCode,
 } from '@opentelemetry/sdk-trace-base';
 import {
   JaegerExporter,
-  JaegerExporterOptions,
 } from '@opentelemetry/exporter-jaeger';
 import {
   ZipkinExporter,
-  ZipkinExporterOptions,
 } from '@opentelemetry/exporter-zipkin';
 import {
   OTLPTraceExporter,
-  OTLPTraceExporterOptions,
 } from '@opentelemetry/exporter-trace-otlp-grpc';
 import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-base';
 import { Logger } from '../utils/logger';
@@ -57,11 +52,11 @@ export interface ExporterConfig {
   /** Service name */
   serviceName: string;
   /** Jaeger configuration (for Jaeger exporter) */
-  jaeger?: JaegerExporterOptions;
+  jaeger?: any;
   /** Zipkin configuration (for Zipkin exporter) */
-  zipkin?: ZipkinExporterOptions;
+  zipkin?: any;
   /** OTLP configuration (for OTLP exporter) */
-  otlp?: OTLPTraceExporterOptions;
+  otlp?: any;
   /** Enable console output (for Console exporter) */
   console?: boolean;
   /** Maximum retry attempts */
@@ -79,7 +74,7 @@ interface ExportQueueItem {
   /** Spans to export */
   spans: ReadableSpan[];
   /** Resolve function */
-  resolve: (result: ExportResult) => void;
+  resolve: (result: { code: number; error?: Error }) => void;
   /** Reject function */
   reject: (error: Error) => void;
   /** Retry count */
@@ -145,7 +140,7 @@ export class TracingExporter {
   }
 
   /**
-   * Creates the appropriate exporter based on configuration
+   * Creates appropriate exporter based on configuration
    * @param config - Exporter configuration
    * @returns Span exporter instance
    */
@@ -171,7 +166,7 @@ export class TracingExporter {
    * @returns Jaeger exporter instance
    */
   private createJaegerExporter(config: ExporterConfig): SpanExporter {
-    const jaegerConfig: JaegerExporterOptions = {
+    const jaegerConfig = {
       serviceName: config.serviceName,
       ...config.jaeger,
     };
@@ -186,7 +181,7 @@ export class TracingExporter {
    * @returns Zipkin exporter instance
    */
   private createZipkinExporter(config: ExporterConfig): SpanExporter {
-    const zipkinConfig: ZipkinExporterOptions = {
+    const zipkinConfig = {
       serviceName: config.serviceName,
       ...config.zipkin,
     };
@@ -201,7 +196,7 @@ export class TracingExporter {
    * @returns OTLP exporter instance
    */
   private createOTLPExporter(config: ExporterConfig): SpanExporter {
-    const otlpConfig: OTLPTraceExporterOptions = {
+    const otlpConfig = {
       ...config.otlp,
     };
 
@@ -226,10 +221,10 @@ export class TracingExporter {
    */
   export(
     spans: ReadableSpan[],
-    resultCallback: (result: ExportResult) => void
+    resultCallback: (result: { code: number; error?: Error }) => void
   ): void {
     if (spans.length === 0) {
-      resultCallback({ code: ExportResultCode.SUCCESS });
+      resultCallback({ code: 0 }); // SUCCESS = 0
       return;
     }
 
@@ -305,7 +300,7 @@ export class TracingExporter {
     try {
       const result = await this.performExport(item.spans);
 
-      if (result.code === ExportResultCode.SUCCESS) {
+      if (result.code === 0) { // SUCCESS = 0
         this.stats.successfulExports++;
         item.resolve(result);
         this.logger.debug('Export successful', {
@@ -334,7 +329,7 @@ export class TracingExporter {
       } else {
         this.stats.failedExports++;
         item.resolve({
-          code: ExportResultCode.FAILED,
+          code: 1, // FAILED = 1
           error: error as Error,
         });
 
@@ -347,11 +342,11 @@ export class TracingExporter {
   }
 
   /**
-   * Performs the actual export
+   * Performs actual export
    * @param spans - Spans to export
    * @returns Export result
    */
-  private performExport(spans: ReadableSpan[]): Promise<ExportResult> {
+  private performExport(spans: ReadableSpan[]): Promise<{ code: number; error?: Error }> {
     return new Promise((resolve, reject) => {
       try {
         this.exporter.export(spans, result => {
@@ -391,7 +386,7 @@ export class TracingExporter {
   }
 
   /**
-   * Shuts down the exporter
+   * Shuts down exporter
    * @returns Promise that resolves when shutdown is complete
    */
   async shutdown(): Promise<void> {
@@ -444,7 +439,7 @@ export class TracingExporter {
   }
 
   /**
-   * Gets the current queue size
+   * Gets current queue size
    * @returns Number of items in queue
    */
   getQueueSize(): number {
@@ -502,7 +497,7 @@ export function createExporter(
  */
 export function createJaegerExporter(
   serviceName: string,
-  options?: JaegerExporterOptions
+  options?: any
 ): TracingExporter {
   return createExporter(ExporterType.JAEGER, serviceName, {
     jaeger: options,
@@ -517,7 +512,7 @@ export function createJaegerExporter(
  */
 export function createZipkinExporter(
   serviceName: string,
-  options?: ZipkinExporterOptions
+  options?: any
 ): TracingExporter {
   return createExporter(ExporterType.ZIPKIN, serviceName, {
     zipkin: options,
@@ -532,7 +527,7 @@ export function createZipkinExporter(
  */
 export function createOTLPExporter(
   serviceName: string,
-  options?: OTLPTraceExporterOptions
+  options?: any
 ): TracingExporter {
   return createExporter(ExporterType.OTLP, serviceName, {
     otlp: options,
