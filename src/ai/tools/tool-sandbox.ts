@@ -55,7 +55,7 @@ export interface SandboxResult {
   sandboxContext: SandboxContext;
 }
 
-export interface FileSystemIsolation {
+export interface FileSystemIsolationConfig {
   allowedPaths: string[];
   blockedPaths: string[];
   virtualFileSystem: Map<string, VirtualFile>;
@@ -63,7 +63,7 @@ export interface FileSystemIsolation {
   maxFiles: number;
 }
 
-export interface NetworkIsolation {
+export interface NetworkIsolationConfig {
   allowedDomains: string[];
   blockedDomains: string[];
   allowedProtocols: string[];
@@ -72,7 +72,7 @@ export interface NetworkIsolation {
   maxRequests: number;
 }
 
-export interface ApiRestrictions {
+export interface ApiRestrictionsConfig {
   allowedApis: string[];
   blockedApis: string[];
   rateLimits: Map<string, RateLimit>;
@@ -352,20 +352,8 @@ export class ToolSandbox {
    * Check if tool is allowed in sandbox
    */
   private checkToolAllowed(toolName: string): boolean {
-    // Check if tool is in blocked APIs
-    if (this.apiRestrictions.blockedApis.includes(toolName)) {
-      return false;
-    }
-
-    // Check if tool is in allowed APIs (if whitelist is configured)
-    if (
-      this.apiRestrictions.allowedApis.length > 0 &&
-      !this.apiRestrictions.allowedApis.includes(toolName)
-    ) {
-      return false;
-    }
-
-    return true;
+    // Use the public method to check if API is allowed
+    return this.apiRestrictions.isApiAllowed(toolName);
   }
 
   /**
@@ -676,9 +664,10 @@ class FileSystemIsolation {
   }
 
   writeFile(sandboxId: string, path: string, content: string): boolean {
-    const fs = this.sandboxFileSystems.get(sandboxId);
+    let fs = this.sandboxFileSystems.get(sandboxId);
     if (!fs) {
-      fs.set(sandboxId, new Map());
+      this.sandboxFileSystems.set(sandboxId, new Map());
+      fs = this.sandboxFileSystems.get(sandboxId)!;
     }
 
     const size = Buffer.byteLength(content, 'utf8');
@@ -792,11 +781,7 @@ class ApiRestrictions {
   private permissionChecks: boolean;
   private logger: Logger;
 
-  constructor(config: {
-    allowedApis: string[];
-    blockedApis: string[];
-    permissionChecks: boolean;
-  }, logger: Logger) {
+  constructor(config: ApiRestrictionsConfig, logger: Logger) {
     this.allowedApis = config.allowedApis;
     this.blockedApis = config.blockedApis;
     this.permissionChecks = config.permissionChecks;

@@ -503,7 +503,7 @@ export class PluginAnalytics {
         pluginName: string;
         downloads: number;
         rating: number;
-      }>();
+      }> = [];
 
       for (const plugin of plugins) {
         totalViews += plugin.statistics.views || 0;

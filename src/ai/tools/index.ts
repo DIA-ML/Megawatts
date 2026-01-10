@@ -46,7 +46,7 @@ export {
   SandboxContext,
   SandboxViolation,
   SandboxResult,
-  FileSystemIsolation,
+  FileSystemIsolationConfig,
   NetworkIsolation,
   ApiRestrictions,
   VirtualFile,
