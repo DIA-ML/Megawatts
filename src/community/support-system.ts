@@ -206,7 +206,7 @@ export class SupportSystem {
         guildId,
         category: analysis.suggestedCategory || category,
         priority: analysis.suggestedPriority || priority,
-        status: 'open',
+        status: TicketStatus.OPEN,
         subject,
         description,
         attachments,
@@ -290,13 +290,13 @@ export class SupportSystem {
     await this.repository.updateTicketStatus(ticketId, status);
 
     // Update statistics
-    if (ticket.status === 'open' && status !== 'open') {
+    if (ticket.status === TicketStatus.OPEN && status !== TicketStatus.OPEN) {
       this.statistics.openTickets--;
     }
 
-    if (status === 'resolved') {
+    if (status === TicketStatus.RESOLVED) {
       this.statistics.resolvedTickets++;
-    } else if (status === 'closed') {
+    } else if (status === TicketStatus.CLOSED) {
       this.statistics.closedTickets++;
     }
 
@@ -331,7 +331,7 @@ export class SupportSystem {
 
     // Update ticket status if staff response
     if (isStaff && !internal) {
-      await this.repository.updateTicketStatus(ticketId, 'in_progress');
+      await this.repository.updateTicketStatus(ticketId, TicketStatus.IN_PROGRESS);
     }
 
     this.logger.info('Ticket response added', {
@@ -458,7 +458,7 @@ export class SupportSystem {
         confidence: 0,
         suggestedCategory: category,
         suggestedPriority: priority,
-        shouldEscalate: priority === 'critical' || priority === 'urgent'
+        shouldEscalate: priority === TicketPriority.CRITICAL || priority === TicketPriority.URGENT
       };
     } catch (error) {
       this.logger.error('Failed to analyze ticket for auto-response:', error instanceof Error ? error : new Error(String(error)));
@@ -488,15 +488,81 @@ export class SupportSystem {
         context: {
           userId: 'support-system',
           conversationId: `support_${Date.now()}`,
+          channelId: 'support-system',
           messageHistory: []
         },
         config: {
+          enabled: true,
+          mode: 'conversational',
+          responseChannel: null,
+          responseChannelType: 'same',
+          contextWindow: 4000,
           maxTokens: 500,
           temperature: 0.7,
+          personality: {
+            id: 'support',
+            name: 'Support Assistant',
+            description: 'AI-powered support assistant',
+            systemPrompt: '',
+            defaultTone: 'friendly',
+            defaultFormality: 'casual',
+            defaultVerbosity: 'balanced'
+          },
           tone: 'friendly',
-          contextWindow: 4000,
+          formality: 'casual',
+          verbosity: 'balanced',
+          emotionalIntelligence: {
+            enabled: false,
+            sentimentAnalysis: false,
+            emotionDetection: false,
+            empatheticResponses: false,
+            conflictDeescalation: false,
+            moodAdaptation: false,
+            emotionInfluence: 0
+          },
+          memory: {
+            shortTermEnabled: false,
+            shortTermTTL: 3600,
+            mediumTermEnabled: false,
+            mediumTermRetentionDays: 7,
+            longTermEnabled: false,
+            longTermRetentionDays: 30,
+            vectorSearchEnabled: false,
+            vectorSimilarityThreshold: 0.7
+          },
+          multilingual: {
+            enabled: false,
+            defaultLanguage: 'en',
+            autoDetectLanguage: false,
+            supportedLanguages: []
+          },
+          safety: {
+            enabled: true,
+            contentFiltering: false,
+            moderationLevel: 'moderate',
+            blockHarmfulContent: true,
+            blockPersonalInfo: true,
+            emergencyStop: true,
+            emergencyStopPhrases: [],
+            maxResponseLength: 2000
+          },
+          rateLimiting: {
+            enabled: false,
+            messagesPerMinute: 10,
+            messagesPerHour: 100,
+            messagesPerDay: 1000,
+            perUserLimit: true,
+            perChannelLimit: false,
+            cooldownPeriod: 0
+          },
           features: {
-            toolCalling: false
+            crossChannelAwareness: false,
+            temporalContext: false,
+            userLearning: false,
+            adaptiveResponses: false,
+            toolCalling: false,
+            codeExecution: false,
+            selfEditing: false
           }
         },
         systemPrompt: `You are a helpful support assistant for a Discord bot community. 
@@ -508,13 +574,13 @@ Always be friendly and professional. If you're unsure, suggest escalating to a h
 
       // Parse AI response
       const content = response.content;
-      const confidence = response.metadata?.confidence || 0.7;
+      const confidence = (response.metadata?.confidence as number) || 0.7;
 
       // Determine if escalation is needed
       const shouldEscalate = content.toLowerCase().includes('escalate') ||
         content.toLowerCase().includes('human') ||
-        category === 'api' ||
-        category === 'billing';
+        category === SupportCategory.API ||
+        category === SupportCategory.BILLING;
 
       // Extract suggested category and priority from response
       const suggestedCategory = this.extractSuggestedCategory(content, category);
@@ -798,7 +864,7 @@ If you need more information or this doesn't fully address your issue, please le
       throw new Error(`Ticket ${ticketId} not found`);
     }
 
-    await this.repository.updateTicketStatus(ticketId, 'escalated');
+    await this.repository.updateTicketStatus(ticketId, TicketStatus.ESCALATED);
 
     // Add escalation response
     await this.repository.addTicketResponse(ticketId, {
@@ -822,7 +888,7 @@ If you need more information or this doesn't fully address your issue, please le
    */
   async checkEscalationEligibility(): Promise<string[]> {
     const result = await this.repository.searchTickets({
-      status: 'open' as any,
+      status: TicketStatus.OPEN,
       page: 1,
       pageSize: 100
     });

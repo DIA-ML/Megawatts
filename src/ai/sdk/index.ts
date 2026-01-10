@@ -6,7 +6,7 @@
  * for use throughout the application.
  */
 
-export { AISDKAdapter, AIAdapterConfig } from './ai-sdk-adapter';
+export { AISDKAdapter } from './ai-sdk-adapter';
 export { ProviderFactory, ProviderFactoryConfig, CreatedProvider } from './provider-factory';
 export { ToolConverter, ConversionOptions, ConversionResult } from './tool-converter';
 

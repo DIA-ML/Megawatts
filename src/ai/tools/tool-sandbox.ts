@@ -136,6 +136,7 @@ export class ToolSandbox {
     this.apiRestrictions = new ApiRestrictions({
       allowedApis: config.allowedApis || [],
       blockedApis: config.blockedApis || [],
+      rateLimits: new Map<string, RateLimit>(),
       permissionChecks: true
     }, logger);
 
@@ -576,6 +577,26 @@ export class ToolSandbox {
       totalViolations: allViolations.length,
       violationsByType
     };
+  }
+
+  /**
+   * Determine if an error is security-related
+   */
+  private isSecurityError(error: Error): boolean {
+    // You can customize this logic as needed
+    if (error instanceof BotError) {
+      // If BotError has a severity or type indicating security
+      return error.severity === 'high' || error.severity === 'critical';
+    }
+    // Fallback: check error message for keywords
+    const msg = error.message.toLowerCase();
+    return (
+      msg.includes('permission') ||
+      msg.includes('access denied') ||
+      msg.includes('security') ||
+      msg.includes('not allowed') ||
+      msg.includes('forbidden')
+    );
   }
 
   /**

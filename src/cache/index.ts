@@ -60,7 +60,7 @@ import { RedisConnectionManager } from '../storage/database/redis';
 import { MultiLevelCache, CacheLayer, type MultiLevelCacheConfig } from './multiLevelCache';
 import { CacheInvalidationManager, type TTLConfig, type EventInvalidationConfig, type DependencyInvalidationConfig } from './cacheInvalidation';
 import { CachePolicyManager, EvictionPolicy } from './cachePolicies';
-import { CacheWarmer, type WarmUpConfig } from './cacheWarmer';
+import { CacheWarmer, type WarmUpConfig, WarmUpStrategy } from './cacheWarmer';
 
 /**
  * Advanced cache system configuration
@@ -91,7 +91,7 @@ export interface AdvancedCacheSystemConfig {
 
   // Warmer config
   warming?: {
-    strategy?: 'ON_STARTUP' | 'SCHEDULED' | 'PREDICTIVE' | 'MANUAL';
+    strategy?: WarmUpStrategy;
     batchSize?: number;
     delayBetweenBatches?: number;
     maxRetries?: number;
@@ -100,6 +100,8 @@ export interface AdvancedCacheSystemConfig {
     parallelism?: number;
     enablePredictiveWarming?: boolean;
     predictiveThreshold?: number;
+    accessPatternWindow?: number;
+    maxPredictiveKeys?: number;
   };
 }
 
@@ -192,7 +194,7 @@ export class AdvancedCacheSystem {
       defaultPolicy: EvictionPolicy.LRU,
       l1MaxSize: 1000,
       warming: {
-        strategy: 'ON_STARTUP',
+        strategy: WarmUpStrategy.ON_STARTUP,
         batchSize: 10,
         delayBetweenBatches: 100,
         maxRetries: 3,
@@ -201,6 +203,8 @@ export class AdvancedCacheSystem {
         parallelism: 5,
         enablePredictiveWarming: true,
         predictiveThreshold: 0.7,
+        accessPatternWindow: 3600000,
+        maxPredictiveKeys: 20,
       },
     });
   }
