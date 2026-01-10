@@ -1,4 +1,4 @@
-import { Logger } from '../../../utils/logger';
+import { Logger } from '../../utils/logger';
 
 /**
  * Recovery and rollback management for failed modifications

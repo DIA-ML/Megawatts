@@ -810,8 +810,8 @@ export class MetricsCollector {
     const activeUsersMetric = await this.activeUsersGauge.get();
     const getValue = (metric: any, labels: Record<string, string>): number => {
       const values = metric.values || [];
-      const match = values.find((v: any) => {
-        return Object.entries(labels).every(([k, v]) => v.metric[k] === v);
+      const match = values.find((val: any) => {
+        return Object.entries(labels).every(([k, v]) => val.labels?.[k] === v);
       });
       return match?.value || 0;
     };

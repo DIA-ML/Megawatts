@@ -1,4 +1,4 @@
-import { Logger } from '../../../utils/logger.js';
+import { Logger } from '../../utils/logger.js';
 
 /**
  * Performance optimization learning from historical data
@@ -52,7 +52,7 @@ export class PerformanceOptimizer {
       this.logger.debug(`Performance analysis completed: ${optimizations.length} optimizations found`);
       return { optimizations, benchmarks };
     } catch (error) {
-      this.logger.error('Performance analysis failed:', error);
+      this.logger.error('Performance analysis failed:', error as Error);
       throw error;
     }
   }
@@ -81,7 +81,7 @@ export class PerformanceOptimizer {
       
       this.logger.debug(`Optimization learning completed: ${impact} impact`);
     } catch (error) {
-      this.logger.error('Optimization learning failed:', error);
+      this.logger.error('Optimization learning failed:', error as Error);
       throw error;
     }
   }
@@ -153,28 +153,37 @@ export class PerformanceOptimizer {
       metric: 'memoryUsage',
       current: currentMetrics.memoryUsage,
       target: 50 * 1024 * 1024, // 50MB
-      status: currentMetrics.memoryUsage > 100 * 1024 * 1024 ? 'critical' : 
-              currentMetrics.memoryUsage > 50 * 1024 * 1024 ? 'warning' : 'good'
+      status: (currentMetrics.memoryUsage > 100 * 1024 * 1024
+        ? 'critical'
+        : currentMetrics.memoryUsage > 50 * 1024 * 1024
+        ? 'warning'
+        : 'good') as 'good' | 'warning' | 'critical'
     });
-    
+
     // CPU benchmark
     benchmarks.push({
       metric: 'cpuUsage',
       current: currentMetrics.cpuUsage,
       target: 50,
-      status: currentMetrics.cpuUsage > 80 ? 'critical' : 
-              currentMetrics.cpuUsage > 50 ? 'warning' : 'good'
+      status: (currentMetrics.cpuUsage > 80
+        ? 'critical'
+        : currentMetrics.cpuUsage > 50
+        ? 'warning'
+        : 'good') as 'good' | 'warning' | 'critical'
     });
-    
+
     // Execution time benchmark
     benchmarks.push({
       metric: 'executionTime',
       current: currentMetrics.executionTime,
       target: 1000, // 1 second
-      status: currentMetrics.executionTime > 5000 ? 'critical' : 
-              currentMetrics.executionTime > 1000 ? 'warning' : 'good'
+      status: (currentMetrics.executionTime > 5000
+        ? 'critical'
+        : currentMetrics.executionTime > 1000
+        ? 'warning'
+        : 'good') as 'good' | 'warning' | 'critical'
     });
-    
+
     return benchmarks;
   }
 
@@ -248,10 +257,16 @@ export class PerformanceOptimizer {
       stats.improvements.push(Math.random() * 50); // Mock improvement percentage
     }
     
-    return Array.from(optimizationStats.entries()).map(([optimization, stats]) => ({
+    interface OptimizationStats {
+      count: number;
+      successes: number;
+      improvements: number[];
+    }
+
+    return Array.from(optimizationStats.entries()).map(([optimization, stats]: [string, OptimizationStats]) => ({
       optimization,
       successRate: stats.successes / stats.count,
-      averageImprovement: stats.improvements.reduce((a, b) => a + b, 0) / stats.improvements.length,
+      averageImprovement: stats.improvements.reduce((a: number, b: number) => a + b, 0) / stats.improvements.length,
       frequency: stats.count
     }));
   }

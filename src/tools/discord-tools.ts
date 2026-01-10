@@ -50,7 +50,8 @@ export const createRoleTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 10
+      requestsPerMinute: 10,
+      tokensPerMinute: 10000
     }
   },
   parameters: [
@@ -155,7 +156,8 @@ export const updateRoleTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 15
+      requestsPerMinute: 15,
+      tokensPerMinute: 15000
     }
   },
   parameters: [
@@ -260,7 +262,8 @@ export const deleteRoleTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 5
+      requestsPerMinute: 5,
+      tokensPerMinute: 5000
     }
   },
   parameters: [
@@ -317,7 +320,8 @@ export const assignRoleTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 20
+      requestsPerMinute: 20,
+      tokensPerMinute: 20000
     }
   },
   parameters: [
@@ -381,7 +385,8 @@ export const removeRoleTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 20
+      requestsPerMinute: 20,
+      tokensPerMinute: 20000
     }
   },
   parameters: [
@@ -449,7 +454,8 @@ export const createChannelTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 10
+      requestsPerMinute: 10,
+      tokensPerMinute: 10000
     }
   },
   parameters: [
@@ -560,7 +566,8 @@ export const updateChannelTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 15
+      requestsPerMinute: 15,
+      tokensPerMinute: 15000
     }
   },
   parameters: [
@@ -646,7 +653,8 @@ export const deleteChannelTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 5
+      requestsPerMinute: 5,
+      tokensPerMinute: 5000
     }
   },
   parameters: [
@@ -696,7 +704,8 @@ export const getChannelInfoTool: Tool = {
     monitoring: false,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 60
+      requestsPerMinute: 60,
+      tokensPerMinute: 60000
     }
   },
   parameters: [
@@ -740,7 +749,8 @@ export const kickUserTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 5
+      requestsPerMinute: 5,
+      tokensPerMinute: 5000
     }
   },
   parameters: [
@@ -798,7 +808,8 @@ export const banUserTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 3
+      requestsPerMinute: 3,
+      tokensPerMinute: 3000
     }
   },
   parameters: [
@@ -867,7 +878,8 @@ export const timeoutUserTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 10
+      requestsPerMinute: 10,
+      tokensPerMinute: 10000
     }
   },
   parameters: [
@@ -936,7 +948,8 @@ export const removeTimeoutTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 20
+      requestsPerMinute: 20,
+      tokensPerMinute: 20000
     }
   },
   parameters: [
@@ -993,7 +1006,8 @@ export const getUserInfoTool: Tool = {
     monitoring: false,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 60
+      requestsPerMinute: 60,
+      tokensPerMinute: 60000
     }
   },
   parameters: [
@@ -1044,7 +1058,8 @@ export const sendMessageTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 50
+      requestsPerMinute: 50,
+      tokensPerMinute: 50000
     }
   },
   parameters: [
@@ -1118,7 +1133,8 @@ export const editMessageTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 30
+      requestsPerMinute: 30,
+      tokensPerMinute: 30000
     }
   },
   parameters: [
@@ -1182,7 +1198,8 @@ export const deleteMessageTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 30
+      requestsPerMinute: 30,
+      tokensPerMinute: 30000
     }
   },
   parameters: [
@@ -1239,7 +1256,8 @@ export const getMessageTool: Tool = {
     monitoring: false,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 60
+      requestsPerMinute: 60,
+      tokensPerMinute: 60000
     }
   },
   parameters: [
@@ -1286,7 +1304,8 @@ export const pinMessageTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 20
+      requestsPerMinute: 20,
+      tokensPerMinute: 20000
     }
   },
   parameters: [
@@ -1333,7 +1352,8 @@ export const unpinMessageTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 20
+      requestsPerMinute: 20,
+      tokensPerMinute: 20000
     }
   },
   parameters: [
@@ -1384,7 +1404,8 @@ export const getServerInfoTool: Tool = {
     monitoring: false,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 60
+      requestsPerMinute: 60,
+      tokensPerMinute: 60000
     }
   },
   parameters: [
@@ -1424,7 +1445,8 @@ export const getServerMembersTool: Tool = {
     monitoring: false,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 30
+      requestsPerMinute: 30,
+      tokensPerMinute: 30000
     }
   },
   parameters: [
@@ -1481,7 +1503,8 @@ export const getServerChannelsTool: Tool = {
     monitoring: false,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 30
+      requestsPerMinute: 30,
+      tokensPerMinute: 30000
     }
   },
   parameters: [
@@ -1535,7 +1558,8 @@ export const createWebhookTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 10
+      requestsPerMinute: 10,
+      tokensPerMinute: 10000
     }
   },
   parameters: [
@@ -1601,7 +1625,8 @@ export const updateWebhookTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 15
+      requestsPerMinute: 15,
+      tokensPerMinute: 15000
     }
   },
   parameters: [
@@ -1671,7 +1696,8 @@ export const deleteWebhookTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 5
+      requestsPerMinute: 5,
+      tokensPerMinute: 5000
     }
   },
   parameters: [
@@ -1728,7 +1754,8 @@ export const executeWebhookTool: Tool = {
     monitoring: true,
     sandbox: false,
     rateLimit: {
-      requestsPerMinute: 50
+      requestsPerMinute: 50,
+      tokensPerMinute: 50000
     }
   },
   parameters: [
@@ -1871,7 +1898,7 @@ function parseChannelType(type: string): ChannelType {
     'voice': ChannelType.GuildVoice,
     'category': ChannelType.GuildCategory,
     'news': ChannelType.GuildAnnouncement,
-    'store': ChannelType.GuildStore,
+    'store': ChannelType.GuildAnnouncement,
     'stage': ChannelType.GuildStageVoice
   };
   return typeMap[type] || ChannelType.GuildText;
@@ -2231,7 +2258,7 @@ export class DiscordToolExecutor {
   // ============================================================================
 
   private async createChannel(parameters: any): Promise<any> {
-    const { guild_id, name, type, topic, nsfw, parent_id, position, permission_overwrites, rate_limit_per_user } = parameters;
+    const { guild_id, name, type, topic, nsfw, parent_id, position, permissionOverwrites, rate_limit_per_user } = parameters;
     
     try {
       const guild = await this.getGuild(guild_id);
@@ -2239,7 +2266,7 @@ export class DiscordToolExecutor {
       
       const channel = await guild.channels.create({
         name,
-        type: channelType,
+        type: channelType as ChannelType.GuildText | ChannelType.GuildVoice | ChannelType.GuildCategory | ChannelType.GuildAnnouncement | ChannelType.GuildStageVoice | ChannelType.GuildForum | ChannelType.GuildMedia,
         topic,
         nsfw,
         parent: parent_id,
@@ -2802,7 +2829,7 @@ export class DiscordToolExecutor {
       
       const members = await guild.members.fetch({
         limit: limit || 100,
-        after: after
+        query: after
       });
 
       const membersList = members.map(member => ({

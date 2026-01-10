@@ -1,12 +1,12 @@
-import { Logger } from '../../../utils/logger.js';
-import { BotError } from '../../../types.js';
+import { Logger } from '../../utils/logger.js';
+import { BotError } from '../../types';
 import {
   ProgressTracker,
   AuditLog,
   HealthCheck,
   SelfEditingEvent,
   SelfEditingEventType
-} from '../../../types/self-editing.js';
+} from '../../types/self-editing.js';
 
 /**
  * Manages state tracking and persistence for self-editing operations

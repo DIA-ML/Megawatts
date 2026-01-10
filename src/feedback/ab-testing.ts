@@ -411,12 +411,38 @@ export class ABTestingFramework {
       }
     }
 
+    // Calculate confidence interval for the difference between best variant and control
+    let confidenceInterval: [number, number] = [0, 0];
+    if (bestVariant && control) {
+      // Use Wilson score interval for the difference in conversion rates
+      // Calculate CI for the uplift/difference metric
+      const diff = bestVariant.conversionRate - control.conversionRate;
+      const pooledRate = (control.conversions + bestVariant.conversions) / (control.participants + bestVariant.participants);
+      
+      // Calculate standard error of the difference
+      const varianceControl = (control.conversionRate * (100 - control.conversionRate)) / control.participants;
+      const varianceBest = (bestVariant.conversionRate * (100 - bestVariant.conversionRate)) / bestVariant.participants;
+      const standardError = Math.sqrt(varianceControl + varianceBest);
+      
+      // Get z-score for confidence level
+      const z = this.getZScoreForConfidence(this.config.significanceLevel);
+      
+      // Calculate margin of error
+      const margin = z * standardError;
+      
+      // Confidence interval for the difference
+      confidenceInterval = [
+        Math.max(-100, diff - margin),
+        Math.min(100, diff + margin)
+      ];
+    }
+
     return {
       testType: 'z_test',
       statistic: bestVariant ? bestVariant.conversionRate - control.conversionRate : 0,
       pValue: bestPValue,
       isSignificant: bestPValue < (1 - this.config.significanceLevel),
-      confidenceInterval: [0, 0], // TODO: Calculate proper CI
+      confidenceInterval,
       recommendation: bestPValue < (1 - this.config.significanceLevel) ? 'rollout_winner' : 'continue_test',
     };
   }
@@ -468,8 +494,115 @@ export class ABTestingFramework {
   }
 
   /**
+   * Calculate confidence interval for a proportion (conversion rate)
+   * Uses Wilson score interval for better accuracy, especially for small samples
+   *
+   * @param conversions - Number of conversions
+   * @param participants - Total number of participants
+   * @param confidenceLevel - Confidence level (e.g., 0.95 for 95%)
+   * @returns Confidence interval as [lower, upper] in percentage
+   */
+  private calculateConfidenceInterval(
+    conversions: number,
+    participants: number,
+    confidenceLevel: number = 0.95
+  ): [number, number] {
+    // Handle edge cases
+    if (participants === 0 || conversions < 0) {
+      return [0, 0];
+    }
+
+    const p = conversions / participants;
+    const z = this.getZScoreForConfidence(confidenceLevel);
+    const zSquared = z * z;
+
+    // Wilson score interval formula
+    // CI = (p + z²/(2n) ± z*sqrt((p(1-p) + z²/(4n))/n)) / (1 + z²/n)
+    const n = participants;
+    const center = (p + zSquared / (2 * n)) / (1 + zSquared / n);
+    const margin = z * Math.sqrt((p * (1 - p) + zSquared / (4 * n)) / n) / (1 + zSquared / n);
+
+    const lower = Math.max(0, (center - margin) * 100);
+    const upper = Math.min(100, (center + margin) * 100);
+
+    return [lower, upper];
+  }
+
+  /**
+   * Get z-score for a given confidence level
+   *
+   * @param confidenceLevel - Confidence level (e.g., 0.95 for 95%)
+   * @returns Z-score
+   */
+  private getZScoreForConfidence(confidenceLevel: number): number {
+    // Common z-scores for confidence levels
+    const zScores: Record<number, number> = {
+      0.90: 1.645,
+      0.95: 1.96,
+      0.99: 2.576,
+    };
+
+    if (zScores[confidenceLevel] !== undefined) {
+      return zScores[confidenceLevel];
+    }
+
+    // For other levels, use inverse error function approximation
+    const alpha = 1 - confidenceLevel;
+    const twoTailAlpha = alpha / 2;
+    return this.inverseNormalCDF(1 - twoTailAlpha);
+  }
+
+  /**
+   * Approximation of inverse normal CDF (quantile function)
+   * Uses Beasley-Springer-Moro algorithm
+   *
+   * @param p - Probability (0 < p < 1)
+   * @returns Z-score
+   */
+  private inverseNormalCDF(p: number): number {
+    if (p <= 0 || p >= 1) {
+      return 0;
+    }
+
+    const a = [-3.969683028665376e+01, 2.209460984245205e+02,
+               -2.759285104469687e+02, 1.383577518672690e+02,
+               -3.066479806614716e+01, 2.506628277459239e+00];
+    const b = [-5.447609879822406e+01, 1.615858368580409e+02,
+               -1.556989798598866e+02, 6.680131188771972e+01,
+               -1.328068155288572e+01];
+    const c = [-7.784894002430293e-03, -3.223964580411365e-01,
+               -2.400758277161838e+00, -2.549732539343734e+00,
+                 4.374664141464968e+00, 2.938163982698783e+00];
+    const dCoeffs = [7.784695709041462e-03, 3.224671290700398e-01,
+               2.445134137142996e+00, 3.754408661907416e+00];
+
+    const pLow = 0.02425;
+    const pHigh = 1 - pLow;
+    let q: number;
+    let r: number;
+
+    if (p < pLow) {
+      // Rational approximation for lower region
+      q = Math.sqrt(-2 * Math.log(p));
+      return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+             ((((dCoeffs[0] * q + dCoeffs[1]) * q + dCoeffs[2]) * q + dCoeffs[3]) * q + 1);
+    } else if (p <= pHigh) {
+      // Rational approximation for central region
+      q = p - 0.5;
+      r = q * q;
+      return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+             (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+    } else {
+      // Rational approximation for upper region
+      q = Math.sqrt(-2 * Math.log(1 - p));
+      return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+              ((((dCoeffs[0] * q + dCoeffs[1]) * q + dCoeffs[2]) * q + dCoeffs[3]) * q + 1);
+    }
+  }
+
+  /**
    * Calculate p-value from z-score
-   * 
+   *
    * @param zScore - Z-score
    * @returns P-value
    */

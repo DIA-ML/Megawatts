@@ -117,7 +117,7 @@ export class PluginDiscovery {
             if (!recommendations.find(r => r.pluginId === similar.id) &&
                 !installedPlugins.includes(similar.id)) {
               const recommendation: PluginRecommendation = {
-                pluginId: similar.pluginId,
+                pluginId: similar.id,
                 plugin: similar,
                 score: this.calculateSimilarityScore(installedPlugin, similar),
                 reason: `Similar to ${installedPlugin.name}`,

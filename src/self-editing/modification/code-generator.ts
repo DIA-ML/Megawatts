@@ -1,4 +1,4 @@
-import { Logger } from '../../../utils/logger';
+import { Logger } from '../../utils/logger';
 import { BotError } from '../../../types';
 import { ModificationChange, CodeLocation } from '../../../types/self-editing';
 

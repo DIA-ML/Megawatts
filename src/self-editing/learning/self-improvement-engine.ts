@@ -1,4 +1,4 @@
-import { Logger } from '../../../utils/logger.js';
+import { Logger } from '../../utils/logger.js';
 
 /**
  * Self-improvement strategies and execution
@@ -61,7 +61,7 @@ export class SelfImprovementEngine {
       this.logger.debug(`Improvement analysis completed: ${suggestions.length} suggestions`);
       return { suggestions, currentHealth };
     } catch (error) {
-      this.logger.error('Improvement analysis failed:', error);
+      this.logger.error('Improvement analysis failed:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -125,7 +125,7 @@ export class SelfImprovementEngine {
         };
       }
     } catch (error) {
-      this.logger.error(`Improvement execution error for ${strategyName}:`, error);
+      this.logger.error(`Improvement execution error for ${strategyName}:`, error instanceof Error ? error : new Error(String(error)));
       const duration = Date.now() - startTime;
       
       this.improvementHistory.push({

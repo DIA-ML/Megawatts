@@ -320,29 +320,66 @@ export class SecurityAuditor extends EventEmitter {
    * @returns Array of vulnerability scan results
    */
   private async scanDependencies(): Promise<VulnerabilityScanResult[]> {
-    // This is a placeholder implementation
-    // In production, integrate with tools like npm audit, Snyk, or Dependabot
+    this.logger.info('Scanning dependencies for vulnerabilities');
     const results: VulnerabilityScanResult[] = [];
 
     try {
-      // Simulate dependency scanning
-      // In production, run actual security scanning tools
+      // Read package.json to get dependencies
       const packageJson = require('../../package.json');
       const dependencies = {
         ...packageJson.dependencies,
         ...packageJson.devDependencies,
       };
 
+      // Check for known vulnerable packages and outdated versions
+      // This is a basic implementation - in production, integrate with npm audit, Snyk, or Dependabot
+      const knownVulnerablePackages: Record<string, { minVersion: string; vulnerabilities: Array<{ id: string; severity: SecuritySeverity; title: string; cvssScore?: number; patchedIn?: string }> }> = {
+        // Example known vulnerabilities - in production, use real vulnerability databases
+        'lodash': {
+          minVersion: '4.17.0',
+          vulnerabilities: [
+            { id: 'CVE-2021-23337', severity: SecuritySeverity.HIGH, title: 'Prototype Pollution in lodash', cvssScore: 7.5, patchedIn: '4.17.21' },
+          ],
+        },
+        'axios': {
+          minVersion: '0.1.0',
+          vulnerabilities: [
+            { id: 'CVE-2023-45857', severity: SecuritySeverity.MEDIUM, title: 'SSRF in axios', cvssScore: 5.3, patchedIn: '1.6.0' },
+          ],
+        },
+      };
+
       for (const [name, version] of Object.entries(dependencies)) {
-        // Placeholder: In production, call actual vulnerability scanning APIs
-        // For now, return empty results
+        const vulnerabilities: VulnerabilityScanResult['vulnerabilities'] = [];
+        const versionStr = version as string;
+
+        // Check against known vulnerable packages
+        if (knownVulnerablePackages[name]) {
+          const vulnPackage = knownVulnerablePackages[name];
+          if (this.isVersionInRange(versionStr, vulnPackage.minVersion)) {
+            vulnerabilities.push(...vulnPackage.vulnerabilities);
+          }
+        }
+
+        // Check for outdated packages (older than 6 months)
+        const isOutdated = await this.checkIfPackageOutdated(name, versionStr);
+        if (isOutdated) {
+          vulnerabilities.push({
+            id: `OUTDATED-${name}`,
+            severity: SecuritySeverity.LOW,
+            title: `Outdated package: ${name}`,
+          });
+        }
+
         results.push({
           packageName: name,
-          currentVersion: version as string,
-          vulnerabilities: [],
+          currentVersion: versionStr,
+          vulnerabilities,
           scanTime: new Date(),
         });
       }
+
+      this.logger.info(`Dependency scan completed: scanned ${results.length} packages`);
 
     } catch (error) {
       this.logger.error('Failed to scan dependencies:', error);
@@ -352,19 +389,72 @@ export class SecurityAuditor extends EventEmitter {
   }
 
   /**
+   * Check if a version is in a range (simple semver comparison)
+   * @param version - Version to check
+   * @param minVersion - Minimum version
+   * @returns True if version is in range
+   */
+  private isVersionInRange(version: string, minVersion: string): boolean {
+    const parseVersion = (v: string): number[] => {
+      const parts = v.replace(/^v|^/, '').split(/[.-]/);
+      return parts.map(p => parseInt(p, 10) || 0);
+    };
+
+    const v1 = parseVersion(version);
+    const v2 = parseVersion(minVersion);
+
+    for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+      const n1 = v1[i] || 0;
+      const n2 = v2[i] || 0;
+      if (n1 < n2) return false;
+      if (n1 > n2) return true;
+    }
+    return true;
+  }
+
+  /**
+   * Check if a package is outdated
+   * @param packageName - Package name
+   * @param currentVersion - Current version
+   * @returns True if package is outdated
+   */
+  private async checkIfPackageOutdated(packageName: string, currentVersion: string): Promise<boolean> {
+    try {
+      // In production, use npm registry API to check for latest version
+      // For now, return false to avoid unnecessary findings
+      return false;
+    } catch (error) {
+      this.logger.warn(`Failed to check if package ${packageName} is outdated:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Scan code for security issues
    * @returns Array of security findings
    */
   private async scanCodeForSecurityIssues(): Promise<SecurityFinding[]> {
+    this.logger.info('Scanning code for security issues');
     const findings: SecurityFinding[] = [];
 
-    // This is a placeholder implementation
-    // In production, integrate with static analysis tools like ESLint with security plugins,
-    // SonarQube, or CodeQL
+    try {
+      // Scan for secrets in code
+      const secretFindings = await this.scanForSecrets();
+      findings.push(...secretFindings);
 
-    // Example: Check for hardcoded secrets
-    // Example: Check for SQL injection vulnerabilities
-    // Example: Check for XSS vulnerabilities
+      // Scan for insecure code patterns
+      const patternFindings = await this.scanForInsecureCodePatterns();
+      findings.push(...patternFindings);
+
+      // Perform comprehensive code security analysis
+      const analysisFindings = await this.analyzeCodeSecurity();
+      findings.push(...analysisFindings);
+
+      this.logger.info(`Code security scan completed: ${findings.length} findings found`);
+
+    } catch (error) {
+      this.logger.error('Failed to scan code for security issues:', error);
+    }
 
     return findings;
   }
@@ -374,14 +464,1185 @@ export class SecurityAuditor extends EventEmitter {
    * @returns Array of security findings
    */
   private async scanConfigurationForSecurityIssues(): Promise<SecurityFinding[]> {
+    this.logger.info('Scanning configuration for security issues');
     const findings: SecurityFinding[] = [];
 
-    // This is a placeholder implementation
-    // In production, check for:
-    // - Insecure HTTP usage
-    // - Weak authentication settings
-    // - Missing security headers
-    // - Insecure CORS configuration
+    try {
+      // Check for insecure HTTP usage
+      findings.push(...this.checkInsecureHttpUsage());
+
+      // Check for weak authentication settings
+      findings.push(...this.checkAuthenticationSettings());
+
+      // Check for missing security headers
+      findings.push(...this.checkSecurityHeaders());
+
+      // Check for insecure CORS configuration
+      findings.push(...this.checkCorsConfiguration());
+
+      // Check for environment variable exposure
+      findings.push(...this.checkEnvironmentVariableExposure());
+
+      this.logger.info(`Configuration security scan completed: ${findings.length} findings found`);
+
+    } catch (error) {
+      this.logger.error('Failed to scan configuration for security issues:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Scan for secrets in codebase
+   * @returns Array of security findings
+   */
+  private async scanForSecrets(): Promise<SecurityFinding[]> {
+    this.logger.info('Scanning for secrets in codebase');
+    const findings: SecurityFinding[] = [];
+
+    try {
+      // Patterns for detecting secrets
+      const secretPatterns: Array<{ pattern: RegExp; type: string; severity: SecuritySeverity; description: string }> = [
+        {
+          pattern: /(?:['"`](?:api[_-]?key|apikey|api[_-]?secret|secret[_-]?key|secret|password|passwd|pwd|token|access[_-]?token|refresh[_-]?token|auth[_-]?token|bearer[_-]?token|private[_-]?key|client[_-]?secret|oauth[_-]?secret)['"`]\s*[:=]\s*['"`]([a-zA-Z0-9_\-+=/]{20,})['"`])/gi,
+          type: 'hardcoded_secret',
+          severity: SecuritySeverity.CRITICAL,
+          description: 'Hardcoded secret detected in code',
+        },
+        {
+          pattern: /(?:['"`](?:aws[_-]?access[_-]?key[_-]?id|aws[_-]?secret[_-]?access[_-]?key|aws[_-]?session[_-]?token)['"`]\s*[:=]\s*['"`]([A-Z0-9]{20}|[a-zA-Z0-9/+]{40})['"`])/gi,
+          type: 'aws_credentials',
+          severity: SecuritySeverity.CRITICAL,
+          description: 'AWS credentials detected in code',
+        },
+        {
+          pattern: /(?:['"`](?:github[_-]?token|gh[_-]?token|ghp_[a-zA-Z0-9]{36})['"`]\s*[:=]\s*['"`]([a-zA-Z0-9_\-]{36,})['"`])/gi,
+          type: 'github_token',
+          severity: SecuritySeverity.CRITICAL,
+          description: 'GitHub token detected in code',
+        },
+        {
+          pattern: /(?:['"`](?:stripe[_-]?api[_-]?key|stripe[_-]?secret[_-]?key|sk_live_[a-zA-Z0-9]{24})['"`]\s*[:=]\s*['"`]([a-zA-Z0-9_\-]{24,})['"`])/gi,
+          type: 'stripe_key',
+          severity: SecuritySeverity.CRITICAL,
+          description: 'Stripe API key detected in code',
+        },
+        {
+          pattern: /(?:['"`](?:slack[_-]?token|slack[_-]?webhook|slack[_-]?signing[_-]?secret|xoxb-[a-zA-Z0-9\-]{24,})['"`]\s*[:=]\s*['"`]([a-zA-Z0-9_\-]{24,})['"`])/gi,
+          type: 'slack_token',
+          severity: SecuritySeverity.CRITICAL,
+          description: 'Slack token detected in code',
+        },
+        {
+          pattern: /(?:['"`](?:mongodb[_-]?uri|mongo[_-]?url|database[_-]?url|db[_-]?connection)['"`]\s*[:=]\s*['"`](mongodb(?:\+srv)?:\/\/[^\s'"`]+)['"`])/gi,
+          type: 'database_connection_string',
+          severity: SecuritySeverity.HIGH,
+          description: 'Database connection string detected in code',
+        },
+        {
+          pattern: /(?:['"`](?:postgres[_-]?uri|postgresql[_-]?url|pg[_-]?url)['"`]\s*[:=]\s*['"`](postgres(?:ql)?:\/\/[^\s'"`]+)['"`])/gi,
+          type: 'postgres_connection_string',
+          severity: SecuritySeverity.HIGH,
+          description: 'PostgreSQL connection string detected in code',
+        },
+        {
+          pattern: /(?:['"`](?:redis[_-]?uri|redis[_-]?url)['"`]\s*[:=]\s*['"`](redis(?:\+s)?:\/\/[^\s'"`]+)['"`])/gi,
+          type: 'redis_connection_string',
+          severity: SecuritySeverity.HIGH,
+          description: 'Redis connection string detected in code',
+        },
+        {
+          pattern: /(?:['"`](?:jwt[_-]?secret|jwt[_-]?key|secret[_-]?jwt)['"`]\s*[:=]\s*['"`]([a-zA-Z0-9_\-]{32,})['"`])/gi,
+          type: 'jwt_secret',
+          severity: SecuritySeverity.HIGH,
+          description: 'JWT secret detected in code',
+        },
+        {
+          pattern: /(?:['"`](?:encryption[_-]?key|encrypt[_-]?key|crypto[_-]?key)['"`]\s*[:=]\s*['"`]([a-zA-Z0-9_\-]{32,})['"`])/gi,
+          type: 'encryption_key',
+          severity: SecuritySeverity.HIGH,
+          description: 'Encryption key detected in code',
+        },
+        {
+          pattern: /(?:['"`](?:private[_-]?key|rsa[_-]?private[_-]?key)['"`]\s*[:=]\s*['"`](-----BEGIN[^\s]*PRIVATE KEY-----[\s\S]+?-----END[^\s]*PRIVATE KEY-----)['"`])/gi,
+          type: 'private_key',
+          severity: SecuritySeverity.CRITICAL,
+          description: 'Private key detected in code',
+        },
+      ];
+
+      // Scan TypeScript and JavaScript files
+      const { readdirSync, readFileSync, statSync } = require('fs');
+      const { join } = require('path');
+
+      const scanDirectory = (dir: string, baseDir: string = dir) => {
+        try {
+          const files = readdirSync(dir);
+
+          for (const file of files) {
+            const filePath = join(dir, file);
+            const stat = statSync(filePath);
+
+            if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+              scanDirectory(filePath, baseDir);
+            } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js') || file.endsWith('.json') || file.endsWith('.env'))) {
+              try {
+                const content = readFileSync(filePath, 'utf-8');
+                const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+                for (const secretPattern of secretPatterns) {
+                  const matches = content.matchAll(secretPattern.pattern);
+                  for (const match of matches) {
+                    findings.push({
+                      id: `secret-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      type: secretPattern.type,
+                      severity: secretPattern.severity,
+                      title: `Secret detected: ${secretPattern.type}`,
+                      description: secretPattern.description,
+                      location: relativePath,
+                      recommendation: 'Move secrets to environment variables or a secure secret management system',
+                      affectedComponents: [relativePath],
+                      discoveredAt: new Date(),
+                    });
+                  }
+                }
+              } catch (error) {
+                // Skip files that can't be read
+              }
+            }
+          }
+        } catch (error) {
+          // Skip directories that can't be accessed
+        }
+      };
+
+      // Scan the src directory
+      scanDirectory(join(process.cwd(), 'src'));
+
+      this.logger.info(`Secret scan completed: ${findings.length} secrets found`);
+
+    } catch (error) {
+      this.logger.error('Failed to scan for secrets:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Scan for insecure code patterns
+   * @returns Array of security findings
+   */
+  private async scanForInsecureCodePatterns(): Promise<SecurityFinding[]> {
+    this.logger.info('Scanning for insecure code patterns');
+    const findings: SecurityFinding[] = [];
+
+    try {
+      // Patterns for detecting insecure code
+      const insecurePatterns: Array<{ pattern: RegExp; type: string; severity: SecuritySeverity; title: string; description: string; recommendation: string }> = [
+        {
+          pattern: /\beval\s*\(/g,
+          type: 'eval_usage',
+          severity: SecuritySeverity.HIGH,
+          title: 'Use of eval() function',
+          description: 'The eval() function can execute arbitrary code and is a major security risk',
+          recommendation: 'Replace eval() with safer alternatives like JSON.parse() for parsing data',
+        },
+        {
+          pattern: /\bFunction\s*\(\s*['"`][^'"`]*['"`]\s*\)/g,
+          type: 'function_constructor',
+          severity: SecuritySeverity.HIGH,
+          title: 'Use of Function constructor',
+          description: 'The Function constructor can execute arbitrary code and is a security risk',
+          recommendation: 'Avoid using Function constructor, use regular function declarations or arrow functions',
+        },
+        {
+          pattern: /innerHTML\s*=/g,
+          type: 'inner_html_assignment',
+          severity: SecuritySeverity.HIGH,
+          title: 'Direct innerHTML assignment',
+          description: 'Direct innerHTML assignment can lead to XSS vulnerabilities',
+          recommendation: 'Use textContent or sanitize HTML before setting innerHTML',
+        },
+        {
+          pattern: /dangerouslySetInnerHTML\s*=/g,
+          type: 'dangerously_set_inner_html',
+          severity: SecuritySeverity.HIGH,
+          title: 'Use of dangerouslySetInnerHTML',
+          description: 'dangerouslySetInnerHTML bypasses React XSS protection',
+          recommendation: 'Avoid using dangerouslySetInnerHTML or use a sanitization library like DOMPurify',
+        },
+        {
+          pattern: /document\.write\s*\(/g,
+          type: 'document_write',
+          severity: SecuritySeverity.MEDIUM,
+          title: 'Use of document.write()',
+          description: 'document.write() can overwrite the entire document and is a security risk',
+          recommendation: 'Use DOM manipulation methods like createElement, appendChild, etc.',
+        },
+        {
+          pattern: /setTimeout\s*\(\s*['"`][^'"`]*['"`]/g,
+          type: 'setTimeout_string',
+          severity: SecuritySeverity.MEDIUM,
+          title: 'setTimeout with string argument',
+          description: 'Passing a string to setTimeout is equivalent to eval() and is a security risk',
+          recommendation: 'Pass a function instead of a string to setTimeout',
+        },
+        {
+          pattern: /setInterval\s*\(\s*['"`][^'"`]*['"`]/g,
+          type: 'setInterval_string',
+          severity: SecuritySeverity.MEDIUM,
+          title: 'setInterval with string argument',
+          description: 'Passing a string to setInterval is equivalent to eval() and is a security risk',
+          recommendation: 'Pass a function instead of a string to setInterval',
+        },
+        {
+          pattern: /exec\s*\(/g,
+          type: 'regex_exec',
+          severity: SecuritySeverity.LOW,
+          title: 'Use of regex exec() with user input',
+          description: 'Using exec() with untrusted input can lead to ReDoS attacks',
+          recommendation: 'Validate and sanitize regex patterns before use',
+        },
+        {
+          pattern: /process\.env\.[A-Z_]+\s*==\s*['"`][^'"`]*['"`]/g,
+          type: 'hardcoded_env_comparison',
+          severity: SecuritySeverity.LOW,
+          title: 'Hardcoded environment variable comparison',
+          description: 'Comparing environment variables to hardcoded values may indicate secrets',
+          recommendation: 'Use environment variables for configuration, not hardcoded values',
+        },
+      ];
+
+      // Scan TypeScript and JavaScript files
+      const { readdirSync, readFileSync, statSync } = require('fs');
+      const { join } = require('path');
+
+      const scanDirectory = (dir: string, baseDir: string = dir) => {
+        try {
+          const files = readdirSync(dir);
+
+          for (const file of files) {
+            const filePath = join(dir, file);
+            const stat = statSync(filePath);
+
+            if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+              scanDirectory(filePath, baseDir);
+            } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js') || file.endsWith('.tsx') || file.endsWith('.jsx'))) {
+              try {
+                const content = readFileSync(filePath, 'utf-8');
+                const lines = content.split('\n');
+                const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+                for (const insecurePattern of insecurePatterns) {
+                  const matches = content.matchAll(insecurePattern.pattern);
+                  for (const match of matches) {
+                    const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                    findings.push({
+                      id: `pattern-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      type: insecurePattern.type,
+                      severity: insecurePattern.severity,
+                      title: insecurePattern.title,
+                      description: insecurePattern.description,
+                      location: `${relativePath}:${lineNumber}`,
+                      recommendation: insecurePattern.recommendation,
+                      affectedComponents: [relativePath],
+                      discoveredAt: new Date(),
+                    });
+                  }
+                }
+              } catch (error) {
+                // Skip files that can't be read
+              }
+            }
+          }
+        } catch (error) {
+          // Skip directories that can't be accessed
+        }
+      };
+
+      // Scan the src directory
+      scanDirectory(join(process.cwd(), 'src'));
+
+      this.logger.info(`Insecure pattern scan completed: ${findings.length} patterns found`);
+
+    } catch (error) {
+      this.logger.error('Failed to scan for insecure code patterns:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Analyze code for security issues
+   * @returns Array of security findings
+   */
+  private async analyzeCodeSecurity(): Promise<SecurityFinding[]> {
+    this.logger.info('Analyzing code security');
+    const findings: SecurityFinding[] = [];
+
+    try {
+      // Check for SQL injection vulnerabilities
+      findings.push(...this.checkSqlInjectionVulnerabilities());
+
+      // Check for XSS vulnerabilities
+      findings.push(...this.checkXssVulnerabilities());
+
+      // Check for authentication and authorization issues
+      findings.push(...this.checkAuthenticationIssues());
+
+      // Check for input validation issues
+      findings.push(...this.checkInputValidation());
+
+      // Check for data exposure issues
+      findings.push(...this.checkDataExposure());
+
+      // Check for cryptographic issues
+      findings.push(...this.checkCryptographicIssues());
+
+      this.logger.info(`Code security analysis completed: ${findings.length} issues found`);
+
+    } catch (error) {
+      this.logger.error('Failed to analyze code security:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Check for SQL injection vulnerabilities
+   * @returns Array of security findings
+   */
+  private checkSqlInjectionVulnerabilities(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    // Patterns that may indicate SQL injection vulnerabilities
+    const sqlPatterns: Array<{ pattern: RegExp; severity: SecuritySeverity; description: string }> = [
+      {
+        pattern: /(?:query|execute)\s*\(\s*['"`][^'"`]*\$\{[^}]+\}[^'"`]*['"`]/g,
+        severity: SecuritySeverity.HIGH,
+        description: 'Possible SQL injection via template literal concatenation',
+      },
+      {
+        pattern: /(?:query|execute)\s*\(\s*['"`][^'"`]*\+[^'"`]+['"`]/g,
+        severity: SecuritySeverity.HIGH,
+        description: 'Possible SQL injection via string concatenation',
+      },
+      {
+        pattern: /SELECT\s+.*\s+FROM\s+.*\s+WHERE\s+.*=\s*['"`][^'"`]*\$\{[^}]+\}/gi,
+        severity: SecuritySeverity.CRITICAL,
+        description: 'SQL query with user input in WHERE clause',
+      },
+    ];
+
+    const { readdirSync, readFileSync, statSync } = require('fs');
+    const { join } = require('path');
+
+    const scanDirectory = (dir: string, baseDir: string = dir) => {
+      try {
+        const files = readdirSync(dir);
+
+        for (const file of files) {
+          const filePath = join(dir, file);
+          const stat = statSync(filePath);
+
+          if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+            scanDirectory(filePath, baseDir);
+          } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+            try {
+              const content = readFileSync(filePath, 'utf-8');
+              const lines = content.split('\n');
+              const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+              for (const sqlPattern of sqlPatterns) {
+                const matches = content.matchAll(sqlPattern.pattern);
+                for (const match of matches) {
+                  const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                  findings.push({
+                    id: `sqli-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type: 'sql_injection',
+                    severity: sqlPattern.severity,
+                    title: 'SQL Injection Vulnerability',
+                    description: sqlPattern.description,
+                    location: `${relativePath}:${lineNumber}`,
+                    recommendation: 'Use parameterized queries or prepared statements to prevent SQL injection',
+                    affectedComponents: [relativePath],
+                    discoveredAt: new Date(),
+                  });
+                }
+              }
+            } catch (error) {
+              // Skip files that can't be read
+            }
+          }
+        }
+      } catch (error) {
+        // Skip directories that can't be accessed
+      }
+    };
+
+    scanDirectory(join(process.cwd(), 'src'));
+    return findings;
+  }
+
+  /**
+   * Check for XSS vulnerabilities
+   * @returns Array of security findings
+   */
+  private checkXssVulnerabilities(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    // Patterns that may indicate XSS vulnerabilities
+    const xssPatterns: Array<{ pattern: RegExp; severity: SecuritySeverity; description: string }> = [
+      {
+        pattern: /document\.(write|writeln)\s*\([^)]*\$\{[^}]+\}/g,
+        severity: SecuritySeverity.HIGH,
+        description: 'Possible XSS via document.write with template literal',
+      },
+      {
+        pattern: /element\.innerHTML\s*=\s*[^;]*\$\{[^}]+\}/g,
+        severity: SecuritySeverity.HIGH,
+        description: 'Possible XSS via innerHTML with template literal',
+      },
+      {
+        pattern: /element\.outerHTML\s*=\s*[^;]*\$\{[^}]+\}/g,
+        severity: SecuritySeverity.HIGH,
+        description: 'Possible XSS via outerHTML with template literal',
+      },
+    ];
+
+    const { readdirSync, readFileSync, statSync } = require('fs');
+    const { join } = require('path');
+
+    const scanDirectory = (dir: string, baseDir: string = dir) => {
+      try {
+        const files = readdirSync(dir);
+
+        for (const file of files) {
+          const filePath = join(dir, file);
+          const stat = statSync(filePath);
+
+          if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+            scanDirectory(filePath, baseDir);
+          } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js') || file.endsWith('.tsx') || file.endsWith('.jsx'))) {
+            try {
+              const content = readFileSync(filePath, 'utf-8');
+              const lines = content.split('\n');
+              const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+              for (const xssPattern of xssPatterns) {
+                const matches = content.matchAll(xssPattern.pattern);
+                for (const match of matches) {
+                  const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                  findings.push({
+                    id: `xss-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type: 'xss_vulnerability',
+                    severity: xssPattern.severity,
+                    title: 'XSS Vulnerability',
+                    description: xssPattern.description,
+                    location: `${relativePath}:${lineNumber}`,
+                    recommendation: 'Sanitize user input before rendering and use frameworks with built-in XSS protection',
+                    affectedComponents: [relativePath],
+                    discoveredAt: new Date(),
+                  });
+                }
+              }
+            } catch (error) {
+              // Skip files that can't be read
+            }
+          }
+        }
+      } catch (error) {
+        // Skip directories that can't be accessed
+      }
+    };
+
+    scanDirectory(join(process.cwd(), 'src'));
+    return findings;
+  }
+
+  /**
+   * Check for authentication and authorization issues
+   * @returns Array of security findings
+   */
+  private checkAuthenticationIssues(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    // Patterns that may indicate authentication issues
+    const authPatterns: Array<{ pattern: RegExp; severity: SecuritySeverity; title: string; description: string; recommendation: string }> = [
+      {
+        pattern: /(?:password|passwd|pwd)\s*==\s*['"`][^'"`]*['"`]/gi,
+        severity: SecuritySeverity.CRITICAL,
+        title: 'Hardcoded password comparison',
+        description: 'Comparing passwords to hardcoded values is insecure',
+        recommendation: 'Use secure password hashing and comparison (e.g., bcrypt)',
+      },
+      {
+        pattern: /if\s*\(\s*user\s*===\s*['"`]admin['"`]\s*\)/g,
+        severity: SecuritySeverity.HIGH,
+        title: 'Hardcoded admin check',
+        description: 'Hardcoded admin role check is insecure',
+        recommendation: 'Implement proper role-based access control',
+      },
+      {
+        pattern: /if\s*\(\s*authenticated\s*===\s*true\s*\)/g,
+        severity: SecuritySeverity.MEDIUM,
+        title: 'Simple authentication check',
+        description: 'Simple boolean authentication check may be bypassed',
+        recommendation: 'Use proper authentication middleware and session management',
+      },
+    ];
+
+    const { readdirSync, readFileSync, statSync } = require('fs');
+    const { join } = require('path');
+
+    const scanDirectory = (dir: string, baseDir: string = dir) => {
+      try {
+        const files = readdirSync(dir);
+
+        for (const file of files) {
+          const filePath = join(dir, file);
+          const stat = statSync(filePath);
+
+          if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+            scanDirectory(filePath, baseDir);
+          } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+            try {
+              const content = readFileSync(filePath, 'utf-8');
+              const lines = content.split('\n');
+              const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+              for (const authPattern of authPatterns) {
+                const matches = content.matchAll(authPattern.pattern);
+                for (const match of matches) {
+                  const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                  findings.push({
+                    id: `auth-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type: 'authentication_issue',
+                    severity: authPattern.severity,
+                    title: authPattern.title,
+                    description: authPattern.description,
+                    location: `${relativePath}:${lineNumber}`,
+                    recommendation: authPattern.recommendation,
+                    affectedComponents: [relativePath],
+                    discoveredAt: new Date(),
+                  });
+                }
+              }
+            } catch (error) {
+              // Skip files that can't be read
+            }
+          }
+        }
+      } catch (error) {
+        // Skip directories that can't be accessed
+      }
+    };
+
+    scanDirectory(join(process.cwd(), 'src'));
+    return findings;
+  }
+
+  /**
+   * Check for input validation issues
+   * @returns Array of security findings
+   */
+  private checkInputValidation(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    // Patterns that may indicate lack of input validation
+    const validationPatterns: Array<{ pattern: RegExp; severity: SecuritySeverity; title: string; description: string }> = [
+      {
+        pattern: /req\.body\.[a-zA-Z_$][a-zA-Z0-9_$]*\s*(?!\s*&&|\s*\|\||\s*\?)/g,
+        severity: SecuritySeverity.MEDIUM,
+        title: 'Unvalidated request body access',
+        description: 'Accessing request body without validation may lead to security issues',
+      },
+      {
+        pattern: /req\.query\.[a-zA-Z_$][a-zA-Z0-9_$]*\s*(?!\s*&&|\s*\|\||\s*\?)/g,
+        severity: SecuritySeverity.MEDIUM,
+        title: 'Unvalidated query parameter access',
+        description: 'Accessing query parameters without validation may lead to security issues',
+      },
+      {
+        pattern: /req\.params\.[a-zA-Z_$][a-zA-Z0-9_$]*\s*(?!\s*&&|\s*\|\||\s*\?)/g,
+        severity: SecuritySeverity.MEDIUM,
+        title: 'Unvalidated path parameter access',
+        description: 'Accessing path parameters without validation may lead to security issues',
+      },
+    ];
+
+    const { readdirSync, readFileSync, statSync } = require('fs');
+    const { join } = require('path');
+
+    const scanDirectory = (dir: string, baseDir: string = dir) => {
+      try {
+        const files = readdirSync(dir);
+
+        for (const file of files) {
+          const filePath = join(dir, file);
+          const stat = statSync(filePath);
+
+          if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+            scanDirectory(filePath, baseDir);
+          } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+            try {
+              const content = readFileSync(filePath, 'utf-8');
+              const lines = content.split('\n');
+              const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+              for (const validationPattern of validationPatterns) {
+                const matches = content.matchAll(validationPattern.pattern);
+                for (const match of matches) {
+                  const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                  findings.push({
+                    id: `validation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type: 'input_validation',
+                    severity: validationPattern.severity,
+                    title: validationPattern.title,
+                    description: validationPattern.description,
+                    location: `${relativePath}:${lineNumber}`,
+                    recommendation: 'Implement proper input validation and sanitization for all user inputs',
+                    affectedComponents: [relativePath],
+                    discoveredAt: new Date(),
+                  });
+                }
+              }
+            } catch (error) {
+              // Skip files that can't be read
+            }
+          }
+        }
+      } catch (error) {
+        // Skip directories that can't be accessed
+      }
+    };
+
+    scanDirectory(join(process.cwd(), 'src'));
+    return findings;
+  }
+
+  /**
+   * Check for data exposure issues
+   * @returns Array of security findings
+   */
+  private checkDataExposure(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    // Patterns that may indicate data exposure
+    const exposurePatterns: Array<{ pattern: RegExp; severity: SecuritySeverity; title: string; description: string }> = [
+      {
+        pattern: /console\.(log|debug|info|warn|error)\s*\([^)]*(?:password|secret|token|key|credit|ssn|social)/gi,
+        severity: SecuritySeverity.MEDIUM,
+        title: 'Sensitive data in console output',
+        description: 'Logging sensitive data may expose it in logs',
+      },
+      {
+        pattern: /res\.(send|json)\s*\([^)]*(?:password|secret|token|key|credit|ssn|social)/gi,
+        severity: SecuritySeverity.HIGH,
+        title: 'Sensitive data in API response',
+        description: 'Returning sensitive data in API responses may expose it to clients',
+      },
+    ];
+
+    const { readdirSync, readFileSync, statSync } = require('fs');
+    const { join } = require('path');
+
+    const scanDirectory = (dir: string, baseDir: string = dir) => {
+      try {
+        const files = readdirSync(dir);
+
+        for (const file of files) {
+          const filePath = join(dir, file);
+          const stat = statSync(filePath);
+
+          if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+            scanDirectory(filePath, baseDir);
+          } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+            try {
+              const content = readFileSync(filePath, 'utf-8');
+              const lines = content.split('\n');
+              const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+              for (const exposurePattern of exposurePatterns) {
+                const matches = content.matchAll(exposurePattern.pattern);
+                for (const match of matches) {
+                  const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                  findings.push({
+                    id: `exposure-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type: 'data_exposure',
+                    severity: exposurePattern.severity,
+                    title: exposurePattern.title,
+                    description: exposurePattern.description,
+                    location: `${relativePath}:${lineNumber}`,
+                    recommendation: 'Remove sensitive data from logs and API responses',
+                    affectedComponents: [relativePath],
+                    discoveredAt: new Date(),
+                  });
+                }
+              }
+            } catch (error) {
+              // Skip files that can't be read
+            }
+          }
+        }
+      } catch (error) {
+        // Skip directories that can't be accessed
+      }
+    };
+
+    scanDirectory(join(process.cwd(), 'src'));
+    return findings;
+  }
+
+  /**
+   * Check for cryptographic issues
+   * @returns Array of security findings
+   */
+  private checkCryptographicIssues(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    // Patterns that may indicate cryptographic issues
+    const cryptoPatterns: Array<{ pattern: RegExp; severity: SecuritySeverity; title: string; description: string; recommendation: string }> = [
+      {
+        pattern: /createHash\s*\(\s*['"`]md5['"`]\s*\)/gi,
+        severity: SecuritySeverity.MEDIUM,
+        title: 'Use of MD5 hash',
+        description: 'MD5 is cryptographically broken and should not be used for security purposes',
+        recommendation: 'Use SHA-256 or stronger hash algorithms',
+      },
+      {
+        pattern: /createHash\s*\(\s*['"`]sha1['"`]\s*\)/gi,
+        severity: SecuritySeverity.MEDIUM,
+        title: 'Use of SHA-1 hash',
+        description: 'SHA-1 is deprecated for security purposes',
+        recommendation: 'Use SHA-256 or stronger hash algorithms',
+      },
+      {
+        pattern: /createCipher\s*\(/gi,
+        severity: SecuritySeverity.HIGH,
+        title: 'Use of insecure cipher',
+        description: 'createCipher uses insecure defaults and should be avoided',
+        recommendation: 'Use createCipheriv with proper initialization vectors',
+      },
+      {
+        pattern: /randomBytes\s*\(\s*[0-9]+\s*\)/gi,
+        severity: SecuritySeverity.LOW,
+        title: 'Insufficient random bytes',
+        description: 'Insufficient random bytes may reduce cryptographic strength',
+        recommendation: 'Use at least 16 bytes (128 bits) for cryptographic operations',
+      },
+    ];
+
+    const { readdirSync, readFileSync, statSync } = require('fs');
+    const { join } = require('path');
+
+    const scanDirectory = (dir: string, baseDir: string = dir) => {
+      try {
+        const files = readdirSync(dir);
+
+        for (const file of files) {
+          const filePath = join(dir, file);
+          const stat = statSync(filePath);
+
+          if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+            scanDirectory(filePath, baseDir);
+          } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+            try {
+              const content = readFileSync(filePath, 'utf-8');
+              const lines = content.split('\n');
+              const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+              for (const cryptoPattern of cryptoPatterns) {
+                const matches = content.matchAll(cryptoPattern.pattern);
+                for (const match of matches) {
+                  const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                  findings.push({
+                    id: `crypto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type: 'cryptographic_issue',
+                    severity: cryptoPattern.severity,
+                    title: cryptoPattern.title,
+                    description: cryptoPattern.description,
+                    location: `${relativePath}:${lineNumber}`,
+                    recommendation: cryptoPattern.recommendation,
+                    affectedComponents: [relativePath],
+                    discoveredAt: new Date(),
+                  });
+                }
+              }
+            } catch (error) {
+              // Skip files that can't be read
+            }
+          }
+        }
+      } catch (error) {
+        // Skip directories that can't be accessed
+      }
+    };
+
+    scanDirectory(join(process.cwd(), 'src'));
+    return findings;
+  }
+
+  /**
+   * Check for insecure HTTP usage
+   * @returns Array of security findings
+   */
+  private checkInsecureHttpUsage(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    try {
+      // Check for http:// URLs in configuration
+      const { readFileSync } = require('fs');
+      const { join } = require('path');
+
+      const configFiles = [
+        'package.json',
+        '.env',
+        '.env.example',
+        'docker-compose.yml',
+      ];
+
+      for (const configFile of configFiles) {
+        try {
+          const filePath = join(process.cwd(), configFile);
+          const content = readFileSync(filePath, 'utf-8');
+          const httpMatches = content.match(/http:\/\/[^\s"']+/g);
+
+          if (httpMatches) {
+            for (const match of httpMatches) {
+              // Skip localhost and internal IPs
+              if (!match.includes('localhost') && !match.includes('127.0.0.1') && !match.includes('10.') && !match.includes('192.168.')) {
+                findings.push({
+                  id: `http-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  type: 'insecure_http',
+                  severity: SecuritySeverity.MEDIUM,
+                  title: 'Insecure HTTP usage',
+                  description: `Using HTTP instead of HTTPS: ${match}`,
+                  location: configFile,
+                  recommendation: 'Use HTTPS for all external communications',
+                  affectedComponents: [configFile],
+                  discoveredAt: new Date(),
+                });
+              }
+            }
+          }
+        } catch (error) {
+          // Skip files that don't exist
+        }
+      }
+
+    } catch (error) {
+      this.logger.error('Failed to check for insecure HTTP usage:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Check for weak authentication settings
+   * @returns Array of security findings
+   */
+  private checkAuthenticationSettings(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    try {
+      // Check for weak session settings
+      const weakSessionPatterns = [
+        { pattern: /maxAge\s*:\s*\d{4,5}/, severity: SecuritySeverity.MEDIUM, description: 'Session timeout may be too long' },
+        { pattern: /secure\s*:\s*false/, severity: SecuritySeverity.HIGH, description: 'Session cookie not marked as secure' },
+        { pattern: /httpOnly\s*:\s*false/, severity: SecuritySeverity.HIGH, description: 'Session cookie not marked as httpOnly' },
+        { pattern: /sameSite\s*:\s*['"`]none['"`]/i, severity: SecuritySeverity.MEDIUM, description: 'Session cookie sameSite set to none without secure' },
+      ];
+
+      const { readdirSync, readFileSync, statSync } = require('fs');
+      const { join } = require('path');
+
+      const scanDirectory = (dir: string, baseDir: string = dir) => {
+        try {
+          const files = readdirSync(dir);
+
+          for (const file of files) {
+            const filePath = join(dir, file);
+            const stat = statSync(filePath);
+
+            if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+              scanDirectory(filePath, baseDir);
+            } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+              try {
+                const content = readFileSync(filePath, 'utf-8');
+                const lines = content.split('\n');
+                const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+                for (const sessionPattern of weakSessionPatterns) {
+                  const matches = content.matchAll(sessionPattern.pattern);
+                  for (const match of matches) {
+                    const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                    findings.push({
+                      id: `auth-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      type: 'weak_authentication',
+                      severity: sessionPattern.severity,
+                      title: 'Weak authentication setting',
+                      description: sessionPattern.description,
+                      location: `${relativePath}:${lineNumber}`,
+                      recommendation: 'Configure secure session settings with appropriate timeouts and security flags',
+                      affectedComponents: [relativePath],
+                      discoveredAt: new Date(),
+                    });
+                  }
+                }
+              } catch (error) {
+                // Skip files that can't be read
+              }
+            }
+          }
+        } catch (error) {
+          // Skip directories that can't be accessed
+        }
+      };
+
+      scanDirectory(join(process.cwd(), 'src'));
+
+    } catch (error) {
+      this.logger.error('Failed to check authentication settings:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Check for missing security headers
+   * @returns Array of security findings
+   */
+  private checkSecurityHeaders(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    try {
+      // Check for security headers in middleware or configuration
+      const securityHeaders = [
+        { name: 'X-Content-Type-Options', severity: SecuritySeverity.LOW },
+        { name: 'X-Frame-Options', severity: SecuritySeverity.MEDIUM },
+        { name: 'X-XSS-Protection', severity: SecuritySeverity.LOW },
+        { name: 'Strict-Transport-Security', severity: SecuritySeverity.HIGH },
+        { name: 'Content-Security-Policy', severity: SecuritySeverity.HIGH },
+        { name: 'Permissions-Policy', severity: SecuritySeverity.MEDIUM },
+      ];
+
+      const { readdirSync, readFileSync, statSync } = require('fs');
+      const { join } = require('path');
+
+      // Check if security headers are configured
+      let hasSecurityHeaders = false;
+      const headerFiles: string[] = [];
+
+      const scanDirectory = (dir: string, baseDir: string = dir) => {
+        try {
+          const files = readdirSync(dir);
+
+          for (const file of files) {
+            const filePath = join(dir, file);
+            const stat = statSync(filePath);
+
+            if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+              scanDirectory(filePath, baseDir);
+            } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+              try {
+                const content = readFileSync(filePath, 'utf-8');
+                const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+                for (const header of securityHeaders) {
+                  if (content.includes(header.name)) {
+                    hasSecurityHeaders = true;
+                    break;
+                  }
+                }
+
+                if (content.includes('helmet') || content.includes('security-headers') || content.includes('cors')) {
+                  headerFiles.push(relativePath);
+                }
+              } catch (error) {
+                // Skip files that can't be read
+              }
+            }
+          }
+        } catch (error) {
+          // Skip directories that can't be accessed
+        }
+      };
+
+      scanDirectory(join(process.cwd(), 'src'));
+
+      // If no security headers found, add a finding
+      if (!hasSecurityHeaders && headerFiles.length === 0) {
+        findings.push({
+          id: `headers-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'missing_security_headers',
+          severity: SecuritySeverity.MEDIUM,
+          title: 'Missing security headers',
+          description: 'Security headers are not configured in the application',
+          location: 'middleware',
+          recommendation: 'Implement security headers using helmet or similar middleware',
+          affectedComponents: ['middleware'],
+          discoveredAt: new Date(),
+        });
+      }
+
+    } catch (error) {
+      this.logger.error('Failed to check security headers:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Check for insecure CORS configuration
+   * @returns Array of security findings
+   */
+  private checkCorsConfiguration(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    try {
+      const { readdirSync, readFileSync, statSync } = require('fs');
+      const { join } = require('path');
+
+      const scanDirectory = (dir: string, baseDir: string = dir) => {
+        try {
+          const files = readdirSync(dir);
+
+          for (const file of files) {
+            const filePath = join(dir, file);
+            const stat = statSync(filePath);
+
+            if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+              scanDirectory(filePath, baseDir);
+            } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+              try {
+                const content = readFileSync(filePath, 'utf-8');
+                const lines = content.split('\n');
+                const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+                // Check for overly permissive CORS settings
+                const corsPatterns = [
+                  {
+                    pattern: /origin\s*:\s*['"`]\*['"`]/,
+                    severity: SecuritySeverity.HIGH,
+                    description: 'CORS origin set to wildcard (*) allows any origin',
+                  },
+                  {
+                    pattern: /origin\s*:\s*true/,
+                    severity: SecuritySeverity.HIGH,
+                    description: 'CORS origin set to true allows any origin',
+                  },
+                  {
+                    pattern: /methods\s*:\s*['"`]\*['"`]/,
+                    severity: SecuritySeverity.MEDIUM,
+                    description: 'CORS methods set to wildcard (*) allows any HTTP method',
+                  },
+                ];
+
+                for (const corsPattern of corsPatterns) {
+                  const matches = content.matchAll(corsPattern.pattern);
+                  for (const match of matches) {
+                    const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                    findings.push({
+                      id: `cors-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      type: 'insecure_cors',
+                      severity: corsPattern.severity,
+                      title: 'Insecure CORS configuration',
+                      description: corsPattern.description,
+                      location: `${relativePath}:${lineNumber}`,
+                      recommendation: 'Configure CORS with specific allowed origins, methods, and headers',
+                      affectedComponents: [relativePath],
+                      discoveredAt: new Date(),
+                    });
+                  }
+                }
+              } catch (error) {
+                // Skip files that can't be read
+              }
+            }
+          }
+        } catch (error) {
+          // Skip directories that can't be accessed
+        }
+      };
+
+      scanDirectory(join(process.cwd(), 'src'));
+
+    } catch (error) {
+      this.logger.error('Failed to check CORS configuration:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Check for environment variable exposure
+   * @returns Array of security findings
+   */
+  private checkEnvironmentVariableExposure(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    try {
+      const { readdirSync, readFileSync, statSync } = require('fs');
+      const { join } = require('path');
+
+      const scanDirectory = (dir: string, baseDir: string = dir) => {
+        try {
+          const files = readdirSync(dir);
+
+          for (const file of files) {
+            const filePath = join(dir, file);
+            const stat = statSync(filePath);
+
+            if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+              scanDirectory(filePath, baseDir);
+            } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+              try {
+                const content = readFileSync(filePath, 'utf-8');
+                const lines = content.split('\n');
+                const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+                // Check for environment variables that might be exposed
+                const envPatterns = [
+                  {
+                    pattern: /process\.env\.[A-Z_]+(?!\s*\?)/,
+                    severity: SecuritySeverity.LOW,
+                    description: 'Environment variable accessed without null check',
+                  },
+                ];
+
+                for (const envPattern of envPatterns) {
+                  const matches = content.matchAll(envPattern.pattern);
+                  for (const match of matches) {
+                    const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                    findings.push({
+                      id: `env-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      type: 'env_exposure',
+                      severity: envPattern.severity,
+                      title: 'Environment variable exposure',
+                      description: envPattern.description,
+                      location: `${relativePath}:${lineNumber}`,
+                      recommendation: 'Add null checks for environment variables and provide default values',
+                      affectedComponents: [relativePath],
+                      discoveredAt: new Date(),
+                    });
+                  }
+                }
+              } catch (error) {
+                // Skip files that can't be read
+              }
+            }
+          }
+        } catch (error) {
+          // Skip directories that can't be accessed
+        }
+      };
+
+      scanDirectory(join(process.cwd(), 'src'));
+
+    } catch (error) {
+      this.logger.error('Failed to check for environment variable exposure:', error);
+    }
 
     return findings;
   }
@@ -391,14 +1652,542 @@ export class SecurityAuditor extends EventEmitter {
    * @returns Array of security findings
    */
   private async auditConfiguration(): Promise<SecurityFinding[]> {
+    this.logger.info('Auditing system configuration');
     const findings: SecurityFinding[] = [];
 
-    // This is a placeholder implementation
-    // In production, audit:
-    // - Database configuration
-    // - API configuration
-    // - Authentication configuration
-    // - Authorization configuration
+    try {
+      // Audit database configuration
+      findings.push(...this.auditDatabaseConfiguration());
+
+      // Audit API configuration
+      findings.push(...this.auditApiConfiguration());
+
+      // Audit authentication configuration
+      findings.push(...this.auditAuthenticationConfiguration());
+
+      // Audit authorization configuration
+      findings.push(...this.auditAuthorizationConfiguration());
+
+      // Audit file system permissions
+      findings.push(...this.auditFileSystemPermissions());
+
+      // Audit logging configuration
+      findings.push(...this.auditLoggingConfiguration());
+
+      this.logger.info(`Configuration audit completed: ${findings.length} findings found`);
+
+    } catch (error) {
+      this.logger.error('Failed to audit configuration:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Audit database configuration
+   * @returns Array of security findings
+   */
+  private auditDatabaseConfiguration(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    try {
+      const { readFileSync } = require('fs');
+      const { join } = require('path');
+
+      // Check for database configuration files
+      const configFiles = [
+        '.env',
+        '.env.example',
+        'docker-compose.yml',
+        'postgres/init.sql',
+      ];
+
+      for (const configFile of configFiles) {
+        try {
+          const filePath = join(process.cwd(), configFile);
+          const content = readFileSync(filePath, 'utf-8');
+
+          // Check for default database credentials
+          const defaultCredentials = [
+            { pattern: /password\s*[:=]\s*['"`]?postgres['"`]?/gi, severity: SecuritySeverity.HIGH, description: 'Default PostgreSQL password detected' },
+            { pattern: /password\s*[:=]\s*['"`]?password['"`]?/gi, severity: SecuritySeverity.HIGH, description: 'Default password detected' },
+            { pattern: /password\s*[:=]\s*['"`]?123456['"`]?/gi, severity: SecuritySeverity.HIGH, description: 'Weak password detected' },
+            { pattern: /password\s*[:=]\s*['"`]?admin['"`]?/gi, severity: SecuritySeverity.HIGH, description: 'Default admin password detected' },
+          ];
+
+          for (const credential of defaultCredentials) {
+            if (credential.pattern.test(content)) {
+              findings.push({
+                id: `db-config-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                type: 'database_config',
+                severity: credential.severity,
+                title: 'Insecure database configuration',
+                description: credential.description,
+                location: configFile,
+                recommendation: 'Change default database credentials to strong, unique passwords',
+                affectedComponents: ['database'],
+                discoveredAt: new Date(),
+              });
+            }
+          }
+
+          // Check for unencrypted database connections
+          if (content.includes('postgresql://') && !content.includes('localhost') && !content.includes('127.0.0.1')) {
+            findings.push({
+              id: `db-encrypt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: 'database_config',
+              severity: SecuritySeverity.MEDIUM,
+              title: 'Unencrypted database connection',
+              description: 'Database connection string does not use SSL/TLS',
+              location: configFile,
+              recommendation: 'Use SSL/TLS for database connections (add ?sslmode=require)',
+              affectedComponents: ['database'],
+              discoveredAt: new Date(),
+            });
+          }
+
+        } catch (error) {
+          // Skip files that don't exist
+        }
+      }
+
+    } catch (error) {
+      this.logger.error('Failed to audit database configuration:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Audit API configuration
+   * @returns Array of security findings
+   */
+  private auditApiConfiguration(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    try {
+      const { readdirSync, readFileSync, statSync } = require('fs');
+      const { join } = require('path');
+
+      const scanDirectory = (dir: string, baseDir: string = dir) => {
+        try {
+          const files = readdirSync(dir);
+
+          for (const file of files) {
+            const filePath = join(dir, file);
+            const stat = statSync(filePath);
+
+            if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+              scanDirectory(filePath, baseDir);
+            } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+              try {
+                const content = readFileSync(filePath, 'utf-8');
+                const lines = content.split('\n');
+                const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+                // Check for missing rate limiting
+                if (content.includes('app.listen') || content.includes('express()') || content.includes('createServer')) {
+                  if (!content.includes('rateLimit') && !content.includes('express-rate-limit') && !content.includes('throttle')) {
+                    findings.push({
+                      id: `api-rate-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      type: 'api_config',
+                      severity: SecuritySeverity.MEDIUM,
+                      title: 'Missing rate limiting',
+                      description: 'API endpoints do not have rate limiting configured',
+                      location: relativePath,
+                      recommendation: 'Implement rate limiting to prevent abuse and DoS attacks',
+                      affectedComponents: ['api'],
+                      discoveredAt: new Date(),
+                    });
+                  }
+                }
+
+                // Check for API key in URL parameters
+                const apiKeyPattern = /(?:api[_-]?key|apikey|key)\s*[=]\s*['"`]([^'"`]+)['"`]/gi;
+                const matches = content.matchAll(apiKeyPattern);
+                for (const match of matches) {
+                  if (match[1] && match[1].length > 10) {
+                    const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                    findings.push({
+                      id: `api-key-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      type: 'api_config',
+                      severity: SecuritySeverity.HIGH,
+                      title: 'API key in code',
+                      description: 'API key hardcoded in code',
+                      location: `${relativePath}:${lineNumber}`,
+                      recommendation: 'Move API keys to environment variables',
+                      affectedComponents: ['api'],
+                      discoveredAt: new Date(),
+                    });
+                  }
+                }
+
+              } catch (error) {
+                // Skip files that can't be read
+              }
+            }
+          }
+        } catch (error) {
+          // Skip directories that can't be accessed
+        }
+      };
+
+      scanDirectory(join(process.cwd(), 'src'));
+
+    } catch (error) {
+      this.logger.error('Failed to audit API configuration:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Audit authentication configuration
+   * @returns Array of security findings
+   */
+  private auditAuthenticationConfiguration(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    try {
+      const { readdirSync, readFileSync, statSync } = require('fs');
+      const { join } = require('path');
+
+      const scanDirectory = (dir: string, baseDir: string = dir) => {
+        try {
+          const files = readdirSync(dir);
+
+          for (const file of files) {
+            const filePath = join(dir, file);
+            const stat = statSync(filePath);
+
+            if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+              scanDirectory(filePath, baseDir);
+            } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+              try {
+                const content = readFileSync(filePath, 'utf-8');
+                const lines = content.split('\n');
+                const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+                // Check for plain text password storage
+                if (content.includes('password') && (content.includes('save') || content.includes('store') || content.includes('insert'))) {
+                  findings.push({
+                    id: `auth-store-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type: 'auth_config',
+                    severity: SecuritySeverity.CRITICAL,
+                    title: 'Possible plain text password storage',
+                    description: 'Passwords may be stored in plain text',
+                    location: relativePath,
+                    recommendation: 'Always hash passwords using bcrypt, argon2, or similar',
+                    affectedComponents: ['authentication'],
+                    discoveredAt: new Date(),
+                  });
+                }
+
+                // Check for missing password complexity requirements
+                if (content.includes('password') && !content.includes('complexity') && !content.includes('length') && !content.includes('minLength')) {
+                  findings.push({
+                    id: `auth-complexity-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type: 'auth_config',
+                    severity: SecuritySeverity.MEDIUM,
+                    title: 'Missing password complexity requirements',
+                    description: 'Password validation may not enforce complexity requirements',
+                    location: relativePath,
+                    recommendation: 'Implement password complexity requirements (min length, uppercase, numbers, special chars)',
+                    affectedComponents: ['authentication'],
+                    discoveredAt: new Date(),
+                  });
+                }
+
+                // Check for missing account lockout
+                if (content.includes('login') || content.includes('authenticate')) {
+                  if (!content.includes('lockout') && !content.includes('lock') && !content.includes('attempt')) {
+                    findings.push({
+                      id: `auth-lockout-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      type: 'auth_config',
+                      severity: SecuritySeverity.HIGH,
+                      title: 'Missing account lockout',
+                      description: 'No account lockout mechanism detected for failed login attempts',
+                      location: relativePath,
+                      recommendation: 'Implement account lockout after multiple failed login attempts',
+                      affectedComponents: ['authentication'],
+                      discoveredAt: new Date(),
+                    });
+                  }
+                }
+
+                // Check for missing multi-factor authentication
+                if (content.includes('login') && !content.includes('2fa') && !content.includes('mfa') && !content.includes('two-factor')) {
+                  findings.push({
+                    id: `auth-mfa-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type: 'auth_config',
+                    severity: SecuritySeverity.MEDIUM,
+                    title: 'Missing multi-factor authentication',
+                    description: 'Multi-factor authentication not implemented',
+                    location: relativePath,
+                    recommendation: 'Consider implementing multi-factor authentication for enhanced security',
+                    affectedComponents: ['authentication'],
+                    discoveredAt: new Date(),
+                  });
+                }
+
+              } catch (error) {
+                // Skip files that can't be read
+              }
+            }
+          }
+        } catch (error) {
+          // Skip directories that can't be accessed
+        }
+      };
+
+      scanDirectory(join(process.cwd(), 'src'));
+
+    } catch (error) {
+      this.logger.error('Failed to audit authentication configuration:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Audit authorization configuration
+   * @returns Array of security findings
+   */
+  private auditAuthorizationConfiguration(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    try {
+      const { readdirSync, readFileSync, statSync } = require('fs');
+      const { join } = require('path');
+
+      const scanDirectory = (dir: string, baseDir: string = dir) => {
+        try {
+          const files = readdirSync(dir);
+
+          for (const file of files) {
+            const filePath = join(dir, file);
+            const stat = statSync(filePath);
+
+            if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+              scanDirectory(filePath, baseDir);
+            } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+              try {
+                const content = readFileSync(filePath, 'utf-8');
+                const lines = content.split('\n');
+                const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+                // Check for role-based access control
+                if (content.includes('admin') && !content.includes('role') && !content.includes('permission')) {
+                  findings.push({
+                    id: `authz-rbac-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type: 'authz_config',
+                    severity: SecuritySeverity.HIGH,
+                    title: 'Missing role-based access control',
+                    description: 'Admin access may not be properly controlled',
+                    location: relativePath,
+                    recommendation: 'Implement proper role-based access control (RBAC)',
+                    affectedComponents: ['authorization'],
+                    discoveredAt: new Date(),
+                  });
+                }
+
+                // Check for authorization bypass patterns
+                const bypassPatterns = [
+                  { pattern: /if\s*\(\s*user\s*===\s*['"`]admin['"`]\s*\)/, severity: SecuritySeverity.HIGH, description: 'Simple admin check' },
+                  { pattern: /if\s*\(\s*isAdmin\s*===\s*true\s*\)/, severity: SecuritySeverity.HIGH, description: 'Simple isAdmin check' },
+                  { pattern: /skipAuth\s*[:=]\s*true/gi, severity: SecuritySeverity.CRITICAL, description: 'Authentication bypass detected' },
+                ];
+
+                for (const bypass of bypassPatterns) {
+                  const matches = content.matchAll(bypass.pattern);
+                  for (const match of matches) {
+                    const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                    findings.push({
+                      id: `authz-bypass-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      type: 'authz_config',
+                      severity: bypass.severity,
+                      title: 'Potential authorization bypass',
+                      description: bypass.description,
+                      location: `${relativePath}:${lineNumber}`,
+                      recommendation: 'Implement proper authorization checks and avoid bypass mechanisms',
+                      affectedComponents: ['authorization'],
+                      discoveredAt: new Date(),
+                    });
+                  }
+                }
+
+              } catch (error) {
+                // Skip files that can't be read
+              }
+            }
+          }
+        } catch (error) {
+          // Skip directories that can't be accessed
+        }
+      };
+
+      scanDirectory(join(process.cwd(), 'src'));
+
+    } catch (error) {
+      this.logger.error('Failed to audit authorization configuration:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Audit file system permissions
+   * @returns Array of security findings
+   */
+  private auditFileSystemPermissions(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    try {
+      const { readFileSync } = require('fs');
+      const { join } = require('path');
+
+      // Check for sensitive files in repository
+      const sensitiveFiles = [
+        '.env',
+        '.env.local',
+        '.env.development',
+        '.env.production',
+        'secrets.json',
+        'config/secrets.json',
+        'credentials.json',
+      ];
+
+      // Check if .gitignore exists and contains sensitive files
+      try {
+        const gitignorePath = join(process.cwd(), '.gitignore');
+        const gitignoreContent = readFileSync(gitignorePath, 'utf-8');
+
+        for (const sensitiveFile of sensitiveFiles) {
+          try {
+            const filePath = join(process.cwd(), sensitiveFile);
+            readFileSync(filePath, 'utf-8'); // Try to read the file
+
+            // File exists, check if it's in .gitignore
+            if (!gitignoreContent.includes(sensitiveFile) && !gitignoreContent.includes('.env*')) {
+              findings.push({
+                id: `fs-perm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                type: 'filesystem_permission',
+                severity: SecuritySeverity.HIGH,
+                title: 'Sensitive file not in .gitignore',
+                description: `Sensitive file ${sensitiveFile} may be committed to version control`,
+                location: sensitiveFile,
+                recommendation: `Add ${sensitiveFile} to .gitignore and ensure it is not committed`,
+                affectedComponents: ['filesystem'],
+                discoveredAt: new Date(),
+              });
+            }
+          } catch (error) {
+            // File doesn't exist, skip
+          }
+        }
+      } catch (error) {
+        // .gitignore doesn't exist
+        findings.push({
+          id: `fs-gitignore-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'filesystem_permission',
+          severity: SecuritySeverity.MEDIUM,
+          title: 'Missing .gitignore file',
+          description: 'No .gitignore file found to protect sensitive files',
+          location: 'root',
+          recommendation: 'Create a .gitignore file to exclude sensitive files from version control',
+          affectedComponents: ['filesystem'],
+          discoveredAt: new Date(),
+        });
+      }
+
+    } catch (error) {
+      this.logger.error('Failed to audit file system permissions:', error);
+    }
+
+    return findings;
+  }
+
+  /**
+   * Audit logging configuration
+   * @returns Array of security findings
+   */
+  private auditLoggingConfiguration(): SecurityFinding[] {
+    const findings: SecurityFinding[] = [];
+
+    try {
+      const { readdirSync, readFileSync, statSync } = require('fs');
+      const { join } = require('path');
+
+      const scanDirectory = (dir: string, baseDir: string = dir) => {
+        try {
+          const files = readdirSync(dir);
+
+          for (const file of files) {
+            const filePath = join(dir, file);
+            const stat = statSync(filePath);
+
+            if (stat.isDirectory() && !file.startsWith('.') && file !== 'node_modules' && file !== 'dist' && file !== 'build') {
+              scanDirectory(filePath, baseDir);
+            } else if (stat.isFile() && (file.endsWith('.ts') || file.endsWith('.js'))) {
+              try {
+                const content = readFileSync(filePath, 'utf-8');
+                const lines = content.split('\n');
+                const relativePath = filePath.replace(baseDir, '').replace(/\\/g, '/');
+
+                // Check for logging sensitive data
+                const sensitiveLoggingPatterns = [
+                  { pattern: /console\.(log|debug|info|warn|error)\s*\([^)]*(?:password|token|secret|key|credit|ssn|social)/gi, severity: SecuritySeverity.HIGH },
+                  { pattern: /logger\.(log|debug|info|warn|error)\s*\([^)]*(?:password|token|secret|key|credit|ssn|social)/gi, severity: SecuritySeverity.HIGH },
+                ];
+
+                for (const logPattern of sensitiveLoggingPatterns) {
+                  const matches = content.matchAll(logPattern.pattern);
+                  for (const match of matches) {
+                    const lineNumber = lines.slice(0, content.indexOf(match[0])).length + 1;
+                    findings.push({
+                      id: `log-sensitive-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                      type: 'logging_config',
+                      severity: logPattern.severity,
+                      title: 'Sensitive data in logs',
+                      description: 'Logging sensitive data may expose it in log files',
+                      location: `${relativePath}:${lineNumber}`,
+                      recommendation: 'Remove sensitive data from logs and implement log sanitization',
+                      affectedComponents: ['logging'],
+                      discoveredAt: new Date(),
+                    });
+                  }
+                }
+
+                // Check for structured logging
+                if (content.includes('console.log') && !content.includes('winston') && !content.includes('pino') && !content.includes('bunyan')) {
+                  findings.push({
+                    id: `log-structured-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type: 'logging_config',
+                    severity: SecuritySeverity.LOW,
+                    title: 'Missing structured logging',
+                    description: 'Using console.log instead of structured logging library',
+                    location: relativePath,
+                    recommendation: 'Use a structured logging library like winston or pino for better log management',
+                    affectedComponents: ['logging'],
+                    discoveredAt: new Date(),
+                  });
+                }
+
+              } catch (error) {
+                // Skip files that can't be read
+              }
+            }
+          }
+        } catch (error) {
+          // Skip directories that can't be accessed
+        }
+      };
+
+      scanDirectory(join(process.cwd(), 'src'));
+
+    } catch (error) {
+      this.logger.error('Failed to audit logging configuration:', error);
+    }
 
     return findings;
   }

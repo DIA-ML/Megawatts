@@ -393,7 +393,7 @@ export class DiscordConversationHandler {
           });
 
           return {
-            content: deEscalationResponse.content as string,
+            content: deEscalationResponse,
             tone: 'professional',
             emotion: emotionalContext.emotion.primary,
             metadata: {

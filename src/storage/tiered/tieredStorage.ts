@@ -650,7 +650,7 @@ export class TieredStorageManager {
 
     const serializedValue = JSON.stringify(value);
     const compressedValue = this.config.cold.compressionEnabled
-      ? this.compress(serializedValue)
+      ? await this.compress(serializedValue)
       : serializedValue;
 
     await this.postgres.query(
@@ -735,7 +735,7 @@ export class TieredStorageManager {
 
     if (result.rows.length > 0) {
       const { value, compressed } = result.rows[0];
-      const decompressedValue = compressed ? this.decompress(value) : value;
+      const decompressedValue = compressed ? await this.decompress(value) : value;
       return JSON.parse(decompressedValue) as T;
     }
     return null;
@@ -1155,20 +1155,54 @@ export class TieredStorageManager {
   }
 
   /**
-   * Compresses a string using simple compression
-   * In production, use a proper compression library like zlib
+   * Compresses data using zlib deflate algorithm
+   * Handles both string and buffer inputs
+   * @param data - Data to compress (string or Buffer)
+   * @returns Compressed data as base64-encoded string for storage
    */
-  private compress(data: string): string {
-    // Placeholder - implement proper compression
-    return data;
+  private async compress(data: string | Buffer): Promise<string> {
+    try {
+      // Convert string to Buffer if necessary
+      const inputBuffer = typeof data === 'string' ? Buffer.from(data, 'utf8') : data;
+      
+      // Compress using deflate algorithm
+      const compressedBuffer = await deflate(inputBuffer);
+      
+      // Convert to base64 for storage in database
+      return compressedBuffer.toString('base64');
+    } catch (error) {
+      this.logger.error('Failed to compress data:', error);
+      throw new StorageError(
+        StorageErrorCode.OPERATION_FAILED,
+        'Failed to compress data',
+        { error: error instanceof Error ? error.message : String(error) }
+      );
+    }
   }
 
   /**
-   * Decompresses a string
-   * In production, use a proper decompression library like zlib
+   * Decompresses data using zlib inflate algorithm
+   * Handles base64-encoded compressed data
+   * @param data - Compressed data (base64-encoded string)
+   * @returns Decompressed data as string
    */
-  private decompress(data: string): string {
-    // Placeholder - implement proper decompression
-    return data;
+  private async decompress(data: string): Promise<string> {
+    try {
+      // Convert base64 string back to Buffer
+      const compressedBuffer = Buffer.from(data, 'base64');
+      
+      // Decompress using inflate algorithm
+      const decompressedBuffer = await inflate(compressedBuffer);
+      
+      // Convert Buffer to string
+      return decompressedBuffer.toString('utf8');
+    } catch (error) {
+      this.logger.error('Failed to decompress data:', error);
+      throw new StorageError(
+        StorageErrorCode.OPERATION_FAILED,
+        'Failed to decompress data',
+        { error: error instanceof Error ? error.message : String(error) }
+      );
+    }
   }
 }
