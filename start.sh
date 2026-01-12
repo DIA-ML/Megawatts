@@ -93,17 +93,35 @@ if [ ! -f "$COMPOSE_FILE" ]; then
 fi
 print_success "Compose file found"
 
-# Check if .env file exists (for root compose file)
-if [ "$ENVIRONMENT" = "dev" ] && [ ! -f ".env" ]; then
-    print_step "No .env file found. Creating from .env.example..."
+# Check if .env file exists
+print_step "Checking for environment file..."
+ENV_FILE=""
+case "$ENVIRONMENT" in
+    dev)
+        ENV_FILE=".env"
+        ;;
+    prod)
+        ENV_FILE=".env.production"
+        ;;
+    staging)
+        ENV_FILE=".env.staging"
+        ;;
+esac
+
+if [ -n "$ENV_FILE" ] && [ ! -f "$ENV_FILE" ]; then
+    print_warning "No $ENV_FILE file found."
     if [ -f ".env.example" ]; then
-        cp .env.example .env
-        print_success "Created .env from .env.example"
-        echo -e "${YELLOW}Please edit .env with your configuration before starting services${NC}"
+        print_step "Creating $ENV_FILE from .env.example..."
+        cp .env.example "$ENV_FILE"
+        print_success "Created $ENV_FILE from .env.example"
+        echo -e "${YELLOW}Please edit $ENV_FILE with your configuration before starting services${NC}"
+        echo -e "${YELLOW}Press Enter to continue or Ctrl+C to exit...${NC}"
+        read -r
     else
-        print_error "No .env.example file found. Please create .env manually."
-        exit 1
+        print_warning "No .env.example file found. Continuing with system environment variables..."
     fi
+else
+    print_success "Environment file found: $ENV_FILE"
 fi
 
 # Create necessary data directories
@@ -126,7 +144,8 @@ print_step "Waiting for PostgreSQL to be healthy..."
 MAX_RETRIES=30
 RETRY_COUNT=0
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if docker compose -f "$COMPOSE_FILE" ps postgres | grep -q "healthy"; then
+    HEALTH_STATUS=$(docker compose -f "$COMPOSE_FILE" ps --format json postgres 2>/dev/null | grep -o '"Health":"[^"]*"' | cut -d'"' -f4)
+    if [ "$HEALTH_STATUS" = "healthy" ] || docker inspect --format='{{.State.Health.Status}}' $(docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null) 2>/dev/null | grep -q "healthy"; then
         print_success "PostgreSQL is healthy"
         break
     fi
@@ -137,6 +156,7 @@ done
 
 if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     print_error "PostgreSQL did not become healthy in time"
+    docker compose -f "$COMPOSE_FILE" logs postgres
     exit 1
 fi
 
@@ -145,7 +165,8 @@ print_step "Waiting for Redis to be healthy..."
 MAX_RETRIES=30
 RETRY_COUNT=0
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if docker compose -f "$COMPOSE_FILE" ps redis | grep -q "healthy"; then
+    HEALTH_STATUS=$(docker compose -f "$COMPOSE_FILE" ps --format json redis 2>/dev/null | grep -o '"Health":"[^"]*"' | cut -d'"' -f4)
+    if [ "$HEALTH_STATUS" = "healthy" ] || docker inspect --format='{{.State.Health.Status}}' $(docker compose -f "$COMPOSE_FILE" ps -q redis 2>/dev/null) 2>/dev/null | grep -q "healthy"; then
         print_success "Redis is healthy"
         break
     fi
@@ -156,17 +177,16 @@ done
 
 if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     print_error "Redis did not become healthy in time"
+    docker compose -f "$COMPOSE_FILE" logs redis
     exit 1
 fi
 
-# Start monitoring services
-print_step "Starting monitoring services (prometheus, grafana)..."
-docker compose -f "$COMPOSE_FILE" up -d prometheus grafana
-
-# Wait for prometheus to be ready
-print_step "Waiting for Prometheus to be ready..."
-sleep 5
-print_success "Prometheus started"
+# Start monitoring services if they exist in the compose file
+if docker compose -f "$COMPOSE_FILE" config --services 2>/dev/null | grep -q "prometheus\|grafana"; then
+    print_step "Starting monitoring services (prometheus, grafana)..."
+    docker compose -f "$COMPOSE_FILE" up -d prometheus grafana 2>/dev/null || true
+    print_success "Monitoring services started"
+fi
 
 # Start the main application
 print_step "Starting main application (app)..."
@@ -177,7 +197,8 @@ print_step "Waiting for application to be healthy..."
 MAX_RETRIES=60
 RETRY_COUNT=0
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if docker compose -f "$COMPOSE_FILE" ps app | grep -q "healthy"; then
+    HEALTH_STATUS=$(docker compose -f "$COMPOSE_FILE" ps --format json app 2>/dev/null | grep -o '"Health":"[^"]*"' | cut -d'"' -f4)
+    if [ "$HEALTH_STATUS" = "healthy" ] || docker inspect --format='{{.State.Health.Status}}' $(docker compose -f "$COMPOSE_FILE" ps -q app 2>/dev/null) 2>/dev/null | grep -q "healthy"; then
         print_success "Application is healthy"
         break
     fi
@@ -188,14 +209,16 @@ done
 
 if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     print_error "Application did not become healthy in time"
-    echo "Check logs with: docker compose -f $COMPOSE_FILE logs app"
+    docker compose -f "$COMPOSE_FILE" logs app
     exit 1
 fi
 
-# Start proxy services
-print_step "Starting proxy services (nginx, traefik)..."
-docker compose -f "$COMPOSE_FILE" up -d nginx traefik
-print_success "Proxy services started"
+# Start proxy services if they exist in the compose file
+if docker compose -f "$COMPOSE_FILE" config --services 2>/dev/null | grep -q "nginx\|traefik"; then
+    print_step "Starting proxy services (nginx, traefik)..."
+    docker compose -f "$COMPOSE_FILE" up -d nginx traefik 2>/dev/null || true
+    print_success "Proxy services started"
+fi
 
 # Display service status
 echo ""

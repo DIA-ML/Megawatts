@@ -53,7 +53,7 @@ services:
           cpus: '0.75'
           memory: 384M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -121,7 +121,7 @@ services:
           cpus: '0.25'
           memory: 128M
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD-SHELL", "redis-cli --pass \"${REDIS_PASSWORD_STAGING}\" ping | grep PONG"]
       interval: 30s
       timeout: 10s
       retries: 3

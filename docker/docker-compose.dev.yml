@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: discord-bot-dev
     env_file:
-      - C:/Users/lmwat/Megawatts/.env
+      - ../.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,9 +46,9 @@ services:
     image: postgres:15-alpine
     container_name: discord-bot-postgres-dev
     environment:
-      - POSTGRES_DB=discord_bot_dev
-      - POSTGRES_USER=botuser
-      - POSTGRES_PASSWORD=your_password_here
+      - POSTGRES_DB=${DB_NAME:-discord_bot_dev}
+      - POSTGRES_USER=${DB_USER:-botuser}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-botpass}
     ports:
       - "5433:5432"
     volumes:
@@ -76,7 +76,7 @@ services:
       - bot-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD-SHELL", "redis-cli --pass \"${REDIS_PASSWORD:-redispass}\" ping | grep PONG"]
       interval: 30s
       timeout: 10s
       retries: 3
