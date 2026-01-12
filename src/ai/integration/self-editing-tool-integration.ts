@@ -296,16 +296,16 @@ export async function createSelfEditingToolIntegration(
 ): Promise<SelfEditingToolIntegration> {
   // Default configuration
   const defaultConfig: SelfEditingToolIntegrationConfig = {
-    enabled: process.env.SELF_EDITING_TOOLS_ENABLED === 'true' || false,
-    autoRegisterTools: process.env.SELF_EDITING_AUTO_REGISTER === 'true' || true,
+    enabled: process.env.SELF_EDITING_TOOLS_ENABLED === 'true',
+    autoRegisterTools: process.env.SELF_EDITING_AUTO_REGISTER !== 'false',
     adapterConfig: {
-      enabled: process.env.SELF_EDITING_ENABLED === 'true' || false,
-      enableCodeAnalysis: process.env.SELF_EDITING_CODE_ANALYSIS === 'true' || true,
-      enableCodeModification: process.env.SELF_EDITING_CODE_MODIFICATION === 'true' || false,
-      enableValidation: process.env.SELF_EDITING_VALIDATION === 'true' || true,
-      enableTesting: process.env.SELF_EDITING_TESTING === 'true' || true,
-      enableSuggestions: process.env.SELF_EDITING_SUGGESTIONS === 'true' || true,
-      requireApproval: process.env.SELF_EDITING_REQUIRE_APPROVAL === 'true' || true,
+      enabled: process.env.SELF_EDITING_ENABLED === 'true',
+      enableCodeAnalysis: process.env.SELF_EDITING_CODE_ANALYSIS !== 'false',
+      enableCodeModification: process.env.SELF_EDITING_CODE_MODIFICATION === 'true',
+      enableValidation: process.env.SELF_EDITING_VALIDATION !== 'false',
+      enableTesting: process.env.SELF_EDITING_TESTING !== 'false',
+      enableSuggestions: process.env.SELF_EDITING_SUGGESTIONS !== 'false',
+      requireApproval: process.env.SELF_EDITING_REQUIRE_APPROVAL !== 'false',
       maxModificationsPerSession: parseInt(process.env.SELF_EDITING_MAX_MODIFICATIONS || '10', 10)
     },
     selfEditingConfig: {
