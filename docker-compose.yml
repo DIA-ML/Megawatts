@@ -53,7 +53,7 @@ services:
           cpus: '${APP_CPU_LIMIT:-0.75}'
           memory: ${APP_MEMORY_LIMIT:-384M}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -81,8 +81,6 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf
     networks:
       - bot-network
     restart: unless-stopped
@@ -127,7 +125,7 @@ services:
           cpus: '${REDIS_CPU_LIMIT:-0.25}'
           memory: ${REDIS_MEMORY_LIMIT:-128M}
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD-SHELL", "redis-cli --pass \"${REDIS_PASSWORD:-}\" ping | grep PONG"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -148,7 +146,6 @@ services:
       - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - prometheus_data:/prometheus
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - bot-network
     restart: unless-stopped
@@ -177,8 +174,6 @@ services:
       - "${GRAFANA_PORT:-3000}:3000"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
@@ -208,15 +203,14 @@ services:
       - "${NGINX_HTTP_PORT:-80}:80"
       - "${NGINX_HTTPS_PORT:-443}:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - bot-network
     restart: unless-stopped
     depends_on:
       - app
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -259,28 +253,12 @@ services:
 volumes:
   postgres_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${POSTGRES_DATA_PATH:-./data/postgres}
   redis_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${REDIS_DATA_PATH:-./data/redis}
   prometheus_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${PROMETHEUS_DATA_PATH:-./data/prometheus}
   grafana_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${GRAFANA_DATA_PATH:-./data/grafana}
 
 networks:
   bot-network:

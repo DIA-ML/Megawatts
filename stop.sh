@@ -139,41 +139,41 @@ echo -e "${BLUE}========================================${NC}"
 
 # Stop proxy services first (nginx, traefik)
 print_step "Stopping proxy services (nginx, traefik)..."
-if docker compose -f "$COMPOSE_FILE" ps nginx | grep -q "Up"; then
-    docker compose -f "$COMPOSE_FILE" stop nginx
+if docker compose -f "$COMPOSE_FILE" ps -q nginx 2>/dev/null | grep -q .; then
+    docker compose -f "$COMPOSE_FILE" stop nginx 2>/dev/null || true
     print_success "Nginx stopped"
 fi
-if docker compose -f "$COMPOSE_FILE" ps traefik | grep -q "Up"; then
-    docker compose -f "$COMPOSE_FILE" stop traefik
+if docker compose -f "$COMPOSE_FILE" ps -q traefik 2>/dev/null | grep -q .; then
+    docker compose -f "$COMPOSE_FILE" stop traefik 2>/dev/null || true
     print_success "Traefik stopped"
 fi
 
 # Stop the main application
 print_step "Stopping main application (app)..."
-if docker compose -f "$COMPOSE_FILE" ps app | grep -q "Up"; then
-    docker compose -f "$COMPOSE_FILE" stop app
+if docker compose -f "$COMPOSE_FILE" ps -q app 2>/dev/null | grep -q .; then
+    docker compose -f "$COMPOSE_FILE" stop app 2>/dev/null || true
     print_success "Application stopped"
 fi
 
 # Stop monitoring services
 print_step "Stopping monitoring services (grafana, prometheus)..."
-if docker compose -f "$COMPOSE_FILE" ps grafana | grep -q "Up"; then
-    docker compose -f "$COMPOSE_FILE" stop grafana
+if docker compose -f "$COMPOSE_FILE" ps -q grafana 2>/dev/null | grep -q .; then
+    docker compose -f "$COMPOSE_FILE" stop grafana 2>/dev/null || true
     print_success "Grafana stopped"
 fi
-if docker compose -f "$COMPOSE_FILE" ps prometheus | grep -q "Up"; then
-    docker compose -f "$COMPOSE_FILE" stop prometheus
+if docker compose -f "$COMPOSE_FILE" ps -q prometheus 2>/dev/null | grep -q .; then
+    docker compose -f "$COMPOSE_FILE" stop prometheus 2>/dev/null || true
     print_success "Prometheus stopped"
 fi
 
 # Stop infrastructure services last (postgres, redis)
 print_step "Stopping infrastructure services (redis, postgres)..."
-if docker compose -f "$COMPOSE_FILE" ps redis | grep -q "Up"; then
-    docker compose -f "$COMPOSE_FILE" stop redis
+if docker compose -f "$COMPOSE_FILE" ps -q redis 2>/dev/null | grep -q .; then
+    docker compose -f "$COMPOSE_FILE" stop redis 2>/dev/null || true
     print_success "Redis stopped"
 fi
-if docker compose -f "$COMPOSE_FILE" ps postgres | grep -q "Up"; then
-    docker compose -f "$COMPOSE_FILE" stop postgres
+if docker compose -f "$COMPOSE_FILE" ps -q postgres 2>/dev/null | grep -q .; then
+    docker compose -f "$COMPOSE_FILE" stop postgres 2>/dev/null || true
     print_success "PostgreSQL stopped"
 fi
 
