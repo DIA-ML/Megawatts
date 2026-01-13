@@ -296,17 +296,16 @@ export class ToolRegistry {
   }
 
   /**
-   * Auto-register built-in tools from discord-tools.ts
+   * Auto-register built-in tools from discord-tools.ts and internal-tools.ts
    */
   private async autoRegisterBuiltinTools(): Promise<void> {
+    // Register Discord tools
     try {
-      // Import the discord tools module
       const discordToolsModule = await import('../../tools/discord-tools');
-      
-      // Check if the module exports a discordTools array
+
       if (discordToolsModule.discordTools && Array.isArray(discordToolsModule.discordTools)) {
         const tools = discordToolsModule.discordTools as Tool[];
-        
+
         this.logger.info(`Auto-registering ${tools.length} built-in Discord tools`, {
           toolNames: tools.map(t => t.name)
         });
@@ -314,10 +313,11 @@ export class ToolRegistry {
         for (const tool of tools) {
           try {
             this.registerTool(tool);
-            this.logger.info(`Successfully auto-registered built-in tool: ${tool.name}`, {
-              name: tool.name,
+            this.logger.info(`Tool registered successfully`, {
+              tool: tool.name,
               category: tool.category,
-              safety: tool.safety.level
+              safety: tool.safety.level,
+              version: tool.metadata?.version
             });
           } catch (error) {
             this.logger.error(`Failed to auto-register built-in tool: ${tool.name}`, error as Error);
@@ -327,7 +327,38 @@ export class ToolRegistry {
         this.logger.warn('discordTools array not found in discord-tools module');
       }
     } catch (error) {
-      this.logger.error('Failed to auto-register built-in tools', error as Error);
+      this.logger.error('Failed to auto-register Discord tools', error as Error);
+    }
+
+    // Register Internal/Utility tools
+    try {
+      const internalToolsModule = await import('../../tools/internal-tools');
+
+      if (internalToolsModule.internalTools && Array.isArray(internalToolsModule.internalTools)) {
+        const tools = internalToolsModule.internalTools as Tool[];
+
+        this.logger.info(`Auto-registering ${tools.length} built-in internal tools`, {
+          toolNames: tools.map(t => t.name)
+        });
+
+        for (const tool of tools) {
+          try {
+            this.registerTool(tool);
+            this.logger.info(`Tool registered successfully`, {
+              tool: tool.name,
+              category: tool.category,
+              safety: tool.safety.level,
+              version: tool.metadata?.version
+            });
+          } catch (error) {
+            this.logger.error(`Failed to auto-register internal tool: ${tool.name}`, error as Error);
+          }
+        }
+      } else {
+        this.logger.warn('internalTools array not found in internal-tools module');
+      }
+    } catch (error) {
+      this.logger.error('Failed to auto-register internal tools', error as Error);
     }
   }
 
