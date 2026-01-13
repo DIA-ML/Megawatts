@@ -32,6 +32,7 @@ import { Tool } from '../../types/ai';
 import { ToolExecutor, ExecutionContext, ToolExecutionResult } from '../../ai/tools/tool-executor';
 import { ToolSandbox, SandboxConfig } from '../../ai/tools/tool-sandbox';
 import { DiscordToolExecutor } from '../../tools/discord-tools';
+import { Client } from 'discord.js';
 
 // ============================================================================
 // DISCORD CONVERSATION HANDLER CLASS
@@ -49,6 +50,7 @@ export class DiscordConversationHandler {
   private toolSandbox: ToolSandbox;
   private logger: Logger;
   private activeConversations: Map<string, ConversationContext> = new Map();
+  private discordClient: Client | null = null;
 
   constructor(
     config: ConversationalDiscordConfig,
@@ -58,7 +60,8 @@ export class DiscordConversationHandler {
     emotionalIntelligenceEngine: EmotionalIntelligenceEngine,
     emergencyStopHandler: EmergencyStopHandler,
     toolRegistry: ToolRegistry,
-    logger: Logger
+    logger: Logger,
+    discordClient?: Client
   ) {
     this.config = config;
     this.aiProvider = aiProvider;
@@ -68,7 +71,8 @@ export class DiscordConversationHandler {
     this.emergencyStopHandler = emergencyStopHandler;
     this.toolRegistry = toolRegistry;
     this.logger = logger;
-    
+    this.discordClient = discordClient || null;
+
     // Initialize tool executor for handling tool calls
     const sandboxConfig: SandboxConfig = {
       enabled: false, // Sandbox disabled for now
@@ -84,12 +88,12 @@ export class DiscordConversationHandler {
       allowedApis: [],
       blockedApis: []
     };
-    
+
     this.toolSandbox = new ToolSandbox(sandboxConfig, this.logger);
-    
-    // Create Discord tool executor
-    const discordToolExecutor = new DiscordToolExecutor(this.logger);
-    
+
+    // Create Discord tool executor with the client
+    const discordToolExecutor = new DiscordToolExecutor(this.logger, this.discordClient || undefined);
+
     this.toolExecutor = new ToolExecutor(
       this.toolRegistry,
       this.toolSandbox,
@@ -102,7 +106,8 @@ export class DiscordConversationHandler {
         retryAttempts: 3,
         retryDelay: 1000
       },
-      this.logger
+      this.logger,
+      discordToolExecutor  // Pass the Discord tool executor
     );
 
     this.logger.info('DiscordConversationHandler initialized', {
