@@ -925,6 +925,69 @@ export const memoryStoreTool: Tool = {
 };
 
 // ============================================================================
+// WEB FETCH TOOL
+// ============================================================================
+
+export const webFetchTool: Tool = {
+  name: 'web_fetch',
+  description: 'Fetch content from a URL (web pages, GitHub issues, APIs, etc.). Returns the text content of the page.',
+  category: 'utility',
+  permissions: [],
+  safety: {
+    level: 'safe',
+    requiresConfirmation: false,
+    riskDescription: 'Read-only operation to fetch web content'
+  },
+  parameters: [
+    {
+      name: 'url',
+      type: 'string',
+      required: true,
+      description: 'The URL to fetch content from',
+      validation: {
+        pattern: '^https?://'
+      }
+    },
+    {
+      name: 'format',
+      type: 'string',
+      required: false,
+      description: 'Output format: "text" (plain text), "html" (raw HTML), "json" (parse as JSON). Default: "text"',
+      validation: {
+        enum: ['text', 'html', 'json']
+      }
+    },
+    {
+      name: 'max_length',
+      type: 'number',
+      required: false,
+      description: 'Maximum number of characters to return. Default: 50000'
+    }
+  ],
+  metadata: {
+    version: '1.0.0',
+    author: 'AI System',
+    tags: ['utility', 'web', 'fetch', 'http'],
+    examples: [
+      {
+        description: 'Fetch a GitHub issue',
+        parameters: {
+          url: 'https://github.com/owner/repo/issues/1',
+          format: 'text'
+        }
+      },
+      {
+        description: 'Fetch JSON from an API',
+        parameters: {
+          url: 'https://api.example.com/data',
+          format: 'json'
+        }
+      }
+    ]
+  }
+};
+
+// ============================================================================
 // TOOL COLLECTION
 // ============================================================================
 
@@ -936,7 +999,8 @@ export const internalTools: Tool[] = [
   rollbackTool,
   contentModerationTool,
   sentimentAnalysisTool,
-  memoryStoreTool
+  memoryStoreTool,
+  webFetchTool
 ];
 
 // ============================================================================
@@ -978,6 +1042,8 @@ export class InternalToolExecutor {
           return this.sentimentAnalysis(parameters);
         case 'memory_store':
           return this.memoryStore(parameters);
+        case 'web_fetch':
+          return this.webFetch(parameters);
         default:
           throw new BotError(
             `Unknown internal tool: ${toolName}`,
@@ -2925,4 +2991,136 @@ export class InternalToolExecutor {
       timestamp: new Date().toISOString()
     };
   }
+
+  // ============================================================================
+  // WEB FETCH IMPLEMENTATION
+  // ============================================================================
+
+  private async webFetch(parameters: any): Promise<WebFetchResult> {
+    const { url, format = 'text', max_length = 50000 } = parameters;
+
+    try {
+      // Validate URL
+      if (!url || typeof url !== 'string') {
+        throw new BotError('Invalid URL parameter', 'high', { url });
+      }
+
+      if (!url.match(/^https?:\/\//)) {
+        throw new BotError('URL must start with http:// or https://', 'high', { url });
+      }
+
+      this.logger.info('Fetching URL', { url, format });
+
+      // Fetch the URL
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Megawatts-Bot/1.0 (Discord Bot)',
+          'Accept': format === 'json' ? 'application/json' : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        },
+        signal: AbortSignal.timeout(30000) // 30 second timeout
+      });
+
+      if (!response.ok) {
+        throw new BotError(`HTTP error: ${response.status} ${response.statusText}`, 'medium', {
+          url,
+          status: response.status,
+          statusText: response.statusText
+        });
+      }
+
+      let content: string;
+      const contentType = response.headers.get('content-type') || '';
+
+      if (format === 'json' || contentType.includes('application/json')) {
+        const json = await response.json();
+        content = JSON.stringify(json, null, 2);
+      } else {
+        const html = await response.text();
+
+        if (format === 'html') {
+          content = html;
+        } else {
+          // Convert HTML to plain text
+          content = this.htmlToText(html);
+        }
+      }
+
+      // Truncate if too long
+      if (content.length > max_length) {
+        content = content.substring(0, max_length) + '\n\n[Content truncated - exceeded ' + max_length + ' characters]';
+      }
+
+      return {
+        success: true,
+        url,
+        content,
+        contentType,
+        length: content.length,
+        truncated: content.length >= max_length,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch URL', error as Error, { url });
+
+      if (error instanceof BotError) {
+        throw error;
+      }
+
+      throw new BotError(
+        `Failed to fetch URL: ${(error as Error).message}`,
+        'medium',
+        { url, error: (error as Error).message }
+      );
+    }
+  }
+
+  /**
+   * Convert HTML to plain text
+   */
+  private htmlToText(html: string): string {
+    // Remove script and style tags with their content
+    let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+    text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+    // Replace common block elements with newlines
+    text = text.replace(/<\/?(p|div|br|h[1-6]|li|tr|blockquote)[^>]*>/gi, '\n');
+
+    // Replace list items with bullet points
+    text = text.replace(/<li[^>]*>/gi, '\n• ');
+
+    // Remove all remaining HTML tags
+    text = text.replace(/<[^>]+>/g, '');
+
+    // Decode HTML entities
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&quot;/g, '"');
+    text = text.replace(/&#39;/g, "'");
+    text = text.replace(/&mdash;/g, '—');
+    text = text.replace(/&ndash;/g, '–');
+    text = text.replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num, 10)));
+
+    // Normalize whitespace
+    text = text.replace(/\s+/g, ' ');
+    text = text.replace(/\n\s+/g, '\n');
+    text = text.replace(/\n{3,}/g, '\n\n');
+
+    return text.trim();
+  }
+}
+
+// ============================================================================
+// WEB FETCH RESULT TYPE
+// ============================================================================
+
+interface WebFetchResult {
+  success: boolean;
+  url: string;
+  content: string;
+  contentType: string;
+  length: number;
+  truncated: boolean;
+  timestamp: string;
 }

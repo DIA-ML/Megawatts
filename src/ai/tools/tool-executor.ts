@@ -97,9 +97,12 @@ export class ToolExecutor {
   
   // AI SDK integration
   private aiSDKAdapter: AISDKAdapter;
-  
+
   // Discord tool executor for Discord-specific tools
   private discordToolExecutor: any = null;
+
+  // Internal tool executor for utility/internal tools
+  private internalToolExecutor: any = null;
 
   constructor(
     registry: ToolRegistry,
@@ -114,7 +117,11 @@ export class ToolExecutor {
     this.logger = logger;
     this.resourceMonitor = new DefaultResourceMonitor(logger);
     this.discordToolExecutor = discordToolExecutor || null;
-    
+
+    // Initialize internal tool executor
+    const { InternalToolExecutor } = require('../../tools/internal-tools');
+    this.internalToolExecutor = new InternalToolExecutor(logger);
+
     // Get AI SDK adapter from registry
     this.aiSDKAdapter = registry.getAISDKAdapter();
   }
@@ -466,6 +473,36 @@ export class ToolExecutor {
 
         // Execute using Discord tool executor
         const result = await this.discordToolExecutor.execute(
+          tool.name,
+          toolCall.arguments
+        );
+
+        // Log successful execution
+        this.logger.info('Tool execution completed successfully', {
+          toolName: tool.name,
+          toolCallId: toolCall.id,
+          success: true
+        });
+
+        return result;
+      }
+
+      // Handle utility and internal category tools
+      if (tool.category === 'utility' || tool.category === 'internal') {
+        if (!this.internalToolExecutor) {
+          throw new BotError(
+            'Internal tool executor not initialized.',
+            'high',
+            { toolName: tool.name }
+          );
+        }
+
+        this.logger.debug('Routing to Internal tool executor', {
+          toolName: tool.name
+        });
+
+        // Execute using Internal tool executor
+        const result = await this.internalToolExecutor.execute(
           tool.name,
           toolCall.arguments
         );
