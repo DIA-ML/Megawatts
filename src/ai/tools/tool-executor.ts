@@ -517,6 +517,64 @@ export class ToolExecutor {
         return result;
       }
 
+      // Handle AI/self-editing category tools
+      if (tool.category === 'ai') {
+        this.logger.debug('Routing to Self-Editing tool adapter', {
+          toolName: tool.name
+        });
+
+        // Self-editing tools use the SelfEditingToolAdapter
+        // Import and use dynamically to avoid circular dependencies
+        try {
+          const { SelfEditingToolAdapter } = await import('../../tools/self-editing-tool-adapter');
+          const { SelfEditingIntegration } = await import('../integration/self-editing-integration');
+
+          // Create adapter with default config if not already available
+          const selfEditingConfig = {
+            enabled: true,
+            analysis: { enabled: true },
+            nlp: { enabled: true },
+            testing: { enabled: true },
+            performance: { enabled: true }
+          };
+          const selfEditingIntegration = new SelfEditingIntegration(selfEditingConfig as any, this.logger);
+          const selfEditingAdapter = new SelfEditingToolAdapter(
+            this.registry,
+            selfEditingIntegration,
+            {
+              enabled: true,
+              enableCodeAnalysis: true,
+              enableCodeModification: true,
+              enableValidation: true,
+              enableTesting: true,
+              enableSuggestions: true,
+              requireApproval: false,
+              maxModificationsPerSession: 10
+            },
+            this.logger
+          );
+
+          const result = await selfEditingAdapter.executeTool(
+            tool.name,
+            toolCall.arguments,
+            context
+          );
+
+          this.logger.info('Self-editing tool execution completed successfully', {
+            toolName: tool.name,
+            toolCallId: toolCall.id,
+            success: result.success
+          });
+
+          return result.result;
+        } catch (selfEditError) {
+          this.logger.error('Self-editing tool execution failed', selfEditError as Error, {
+            toolName: tool.name
+          });
+          throw selfEditError;
+        }
+      }
+
       // Handle other tool categories
       // For now, throw an error for unsupported categories
       throw new BotError(

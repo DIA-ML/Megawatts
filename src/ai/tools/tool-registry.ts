@@ -360,6 +360,37 @@ export class ToolRegistry {
     } catch (error) {
       this.logger.error('Failed to auto-register internal tools', error as Error);
     }
+
+    // Register Self-Editing tools
+    try {
+      const selfEditingToolsModule = await import('../../tools/self-editing-tools');
+
+      if (selfEditingToolsModule.selfEditingTools && Array.isArray(selfEditingToolsModule.selfEditingTools)) {
+        const tools = selfEditingToolsModule.selfEditingTools as Tool[];
+
+        this.logger.info(`Auto-registering ${tools.length} self-editing tools`, {
+          toolNames: tools.map(t => t.name)
+        });
+
+        for (const tool of tools) {
+          try {
+            this.registerTool(tool);
+            this.logger.info(`Tool registered successfully`, {
+              tool: tool.name,
+              category: tool.category,
+              safety: tool.safety.level,
+              version: tool.metadata?.version
+            });
+          } catch (error) {
+            this.logger.error(`Failed to auto-register self-editing tool: ${tool.name}`, error as Error);
+          }
+        }
+      } else {
+        this.logger.warn('selfEditingTools array not found in self-editing-tools module');
+      }
+    } catch (error) {
+      this.logger.error('Failed to auto-register self-editing tools', error as Error);
+    }
   }
 
   /**
