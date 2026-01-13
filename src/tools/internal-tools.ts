@@ -925,6 +925,220 @@ export const memoryStoreTool: Tool = {
 };
 
 // ============================================================================
+// WEB FETCH TOOL
+// ============================================================================
+
+export const webFetchTool: Tool = {
+  name: 'web_fetch',
+  description: 'Fetch content from a URL (web pages, GitHub issues, APIs, etc.). Returns the text content of the page.',
+  category: 'utility',
+  permissions: [],
+  safety: {
+    level: 'safe',
+    requiresConfirmation: false,
+    riskDescription: 'Read-only operation to fetch web content'
+  },
+  parameters: [
+    {
+      name: 'url',
+      type: 'string',
+      required: true,
+      description: 'The URL to fetch content from',
+      validation: {
+        pattern: '^https?://'
+      }
+    },
+    {
+      name: 'format',
+      type: 'string',
+      required: false,
+      description: 'Output format: "text" (plain text), "html" (raw HTML), "json" (parse as JSON). Default: "text"',
+      validation: {
+        enum: ['text', 'html', 'json']
+      }
+    },
+    {
+      name: 'max_length',
+      type: 'number',
+      required: false,
+      description: 'Maximum number of characters to return. Default: 50000'
+    }
+  ],
+  metadata: {
+    version: '1.0.0',
+    author: 'AI System',
+    tags: ['utility', 'web', 'fetch', 'http'],
+    examples: [
+      {
+        description: 'Fetch a GitHub issue',
+        parameters: {
+          url: 'https://github.com/owner/repo/issues/1',
+          format: 'text'
+        }
+      },
+      {
+        description: 'Fetch JSON from an API',
+        parameters: {
+          url: 'https://api.example.com/data',
+          format: 'json'
+        }
+      }
+    ]
+  }
+};
+
+// ============================================================================
+// FILE SYSTEM TOOLS
+// ============================================================================
+
+export const readFileTool: Tool = {
+  name: 'read_file',
+  description: 'Read the contents of a file from the project filesystem. Can read source code, config files, documentation, etc.',
+  category: 'utility',
+  permissions: [],
+  safety: {
+    level: 'safe',
+    requiresConfirmation: false,
+    riskDescription: 'Read-only operation to read file contents'
+  },
+  parameters: [
+    {
+      name: 'path',
+      type: 'string',
+      required: true,
+      description: 'The file path to read (relative to project root or absolute)'
+    },
+    {
+      name: 'max_lines',
+      type: 'number',
+      required: false,
+      description: 'Maximum number of lines to return. Default: 500'
+    }
+  ],
+  metadata: {
+    version: '1.0.0',
+    author: 'AI System',
+    tags: ['utility', 'filesystem', 'read'],
+    examples: [
+      {
+        description: 'Read the README file',
+        parameters: { path: 'README.md' }
+      },
+      {
+        description: 'Read a source file',
+        parameters: { path: 'src/index.ts', max_lines: 100 }
+      }
+    ]
+  }
+};
+
+export const listFilesTool: Tool = {
+  name: 'list_files',
+  description: 'List files and directories in a given path. Useful for exploring the project structure.',
+  category: 'utility',
+  permissions: [],
+  safety: {
+    level: 'safe',
+    requiresConfirmation: false,
+    riskDescription: 'Read-only operation to list directory contents'
+  },
+  parameters: [
+    {
+      name: 'path',
+      type: 'string',
+      required: false,
+      description: 'The directory path to list (relative to project root). Default: project root'
+    },
+    {
+      name: 'recursive',
+      type: 'boolean',
+      required: false,
+      description: 'Whether to list recursively. Default: false'
+    },
+    {
+      name: 'pattern',
+      type: 'string',
+      required: false,
+      description: 'Glob pattern to filter files (e.g., "*.ts", "**/*.md")'
+    }
+  ],
+  metadata: {
+    version: '1.0.0',
+    author: 'AI System',
+    tags: ['utility', 'filesystem', 'list', 'directory'],
+    examples: [
+      {
+        description: 'List all files in src directory',
+        parameters: { path: 'src' }
+      },
+      {
+        description: 'Find all TypeScript files',
+        parameters: { path: '.', recursive: true, pattern: '*.ts' }
+      }
+    ]
+  }
+};
+
+export const grepTool: Tool = {
+  name: 'grep',
+  description: 'Search for a pattern in files. Returns matching lines with file paths and line numbers.',
+  category: 'utility',
+  permissions: [],
+  safety: {
+    level: 'safe',
+    requiresConfirmation: false,
+    riskDescription: 'Read-only operation to search file contents'
+  },
+  parameters: [
+    {
+      name: 'pattern',
+      type: 'string',
+      required: true,
+      description: 'The search pattern (supports regex)'
+    },
+    {
+      name: 'path',
+      type: 'string',
+      required: false,
+      description: 'The path to search in (file or directory). Default: project root'
+    },
+    {
+      name: 'recursive',
+      type: 'boolean',
+      required: false,
+      description: 'Whether to search recursively in directories. Default: true'
+    },
+    {
+      name: 'case_sensitive',
+      type: 'boolean',
+      required: false,
+      description: 'Whether the search is case sensitive. Default: false'
+    },
+    {
+      name: 'max_results',
+      type: 'number',
+      required: false,
+      description: 'Maximum number of results to return. Default: 50'
+    }
+  ],
+  metadata: {
+    version: '1.0.0',
+    author: 'AI System',
+    tags: ['utility', 'filesystem', 'search', 'grep'],
+    examples: [
+      {
+        description: 'Search for a function definition',
+        parameters: { pattern: 'function handleMessage', path: 'src' }
+      },
+      {
+        description: 'Find all TODO comments',
+        parameters: { pattern: 'TODO:', recursive: true }
+      }
+    ]
+  }
+};
+
+// ============================================================================
 // TOOL COLLECTION
 // ============================================================================
 
@@ -936,7 +1150,11 @@ export const internalTools: Tool[] = [
   rollbackTool,
   contentModerationTool,
   sentimentAnalysisTool,
-  memoryStoreTool
+  memoryStoreTool,
+  webFetchTool,
+  readFileTool,
+  listFilesTool,
+  grepTool
 ];
 
 // ============================================================================
@@ -978,6 +1196,14 @@ export class InternalToolExecutor {
           return this.sentimentAnalysis(parameters);
         case 'memory_store':
           return this.memoryStore(parameters);
+        case 'web_fetch':
+          return this.webFetch(parameters);
+        case 'read_file':
+          return this.readFile(parameters);
+        case 'list_files':
+          return this.listFiles(parameters);
+        case 'grep':
+          return this.grep(parameters);
         default:
           throw new BotError(
             `Unknown internal tool: ${toolName}`,
@@ -2925,4 +3151,403 @@ export class InternalToolExecutor {
       timestamp: new Date().toISOString()
     };
   }
+
+  // ============================================================================
+  // WEB FETCH IMPLEMENTATION
+  // ============================================================================
+
+  private async webFetch(parameters: any): Promise<WebFetchResult> {
+    const { url, format = 'text', max_length = 50000 } = parameters;
+
+    try {
+      // Validate URL
+      if (!url || typeof url !== 'string') {
+        throw new BotError('Invalid URL parameter', 'high', { url });
+      }
+
+      if (!url.match(/^https?:\/\//)) {
+        throw new BotError('URL must start with http:// or https://', 'high', { url });
+      }
+
+      this.logger.info('Fetching URL', { url, format });
+
+      // Fetch the URL
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Megawatts-Bot/1.0 (Discord Bot)',
+          'Accept': format === 'json' ? 'application/json' : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        },
+        signal: AbortSignal.timeout(30000) // 30 second timeout
+      });
+
+      if (!response.ok) {
+        throw new BotError(`HTTP error: ${response.status} ${response.statusText}`, 'medium', {
+          url,
+          status: response.status,
+          statusText: response.statusText
+        });
+      }
+
+      let content: string;
+      const contentType = response.headers.get('content-type') || '';
+
+      if (format === 'json' || contentType.includes('application/json')) {
+        const json = await response.json();
+        content = JSON.stringify(json, null, 2);
+      } else {
+        const html = await response.text();
+
+        if (format === 'html') {
+          content = html;
+        } else {
+          // Convert HTML to plain text
+          content = this.htmlToText(html);
+        }
+      }
+
+      // Truncate if too long
+      if (content.length > max_length) {
+        content = content.substring(0, max_length) + '\n\n[Content truncated - exceeded ' + max_length + ' characters]';
+      }
+
+      return {
+        success: true,
+        url,
+        content,
+        contentType,
+        length: content.length,
+        truncated: content.length >= max_length,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      this.logger.error('Failed to fetch URL', error as Error, { url });
+
+      if (error instanceof BotError) {
+        throw error;
+      }
+
+      throw new BotError(
+        `Failed to fetch URL: ${(error as Error).message}`,
+        'medium',
+        { url, error: (error as Error).message }
+      );
+    }
+  }
+
+  /**
+   * Convert HTML to plain text
+   */
+  private htmlToText(html: string): string {
+    // Remove script and style tags with their content
+    let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+    text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+    // Replace common block elements with newlines
+    text = text.replace(/<\/?(p|div|br|h[1-6]|li|tr|blockquote)[^>]*>/gi, '\n');
+
+    // Replace list items with bullet points
+    text = text.replace(/<li[^>]*>/gi, '\n• ');
+
+    // Remove all remaining HTML tags
+    text = text.replace(/<[^>]+>/g, '');
+
+    // Decode HTML entities
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&quot;/g, '"');
+    text = text.replace(/&#39;/g, "'");
+    text = text.replace(/&mdash;/g, '—');
+    text = text.replace(/&ndash;/g, '–');
+    text = text.replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num, 10)));
+
+    // Normalize whitespace
+    text = text.replace(/\s+/g, ' ');
+    text = text.replace(/\n\s+/g, '\n');
+    text = text.replace(/\n{3,}/g, '\n\n');
+
+    return text.trim();
+  }
+
+  // ============================================================================
+  // FILE SYSTEM IMPLEMENTATIONS
+  // ============================================================================
+
+  /**
+   * Read a file from the filesystem
+   */
+  private async readFile(parameters: any): Promise<any> {
+    const fs = await import('fs');
+    const pathModule = await import('path');
+
+    const { path: filePath, max_lines = 500 } = parameters;
+
+    try {
+      // Resolve path relative to project root
+      const projectRoot = pathModule.resolve(__dirname, '../..');
+      let fullPath: string;
+
+      if (pathModule.isAbsolute(filePath)) {
+        fullPath = filePath;
+      } else {
+        fullPath = pathModule.join(projectRoot, filePath);
+      }
+
+      // Security: ensure path is within project
+      if (!fullPath.startsWith(projectRoot)) {
+        throw new BotError('Access denied: path is outside project directory', 'high', { filePath });
+      }
+
+      // Check if file exists
+      if (!fs.existsSync(fullPath)) {
+        throw new BotError(`File not found: ${filePath}`, 'medium', { filePath });
+      }
+
+      // Read file
+      let content = fs.readFileSync(fullPath, 'utf-8');
+
+      // Limit lines if needed
+      const lines = content.split('\n');
+      if (lines.length > max_lines) {
+        content = lines.slice(0, max_lines).join('\n') + `\n\n[Truncated - showing first ${max_lines} of ${lines.length} lines]`;
+      }
+
+      this.logger.info('Read file successfully', { filePath, lines: lines.length });
+
+      return {
+        success: true,
+        path: filePath,
+        content,
+        lines: Math.min(lines.length, max_lines),
+        totalLines: lines.length,
+        truncated: lines.length > max_lines
+      };
+    } catch (error) {
+      if (error instanceof BotError) throw error;
+
+      this.logger.error('Failed to read file', error as Error, { filePath });
+      throw new BotError(
+        `Failed to read file: ${(error as Error).message}`,
+        'medium',
+        { filePath, error: (error as Error).message }
+      );
+    }
+  }
+
+  /**
+   * List files in a directory
+   */
+  private async listFiles(parameters: any): Promise<any> {
+    const fs = await import('fs');
+    const pathModule = await import('path');
+
+    const { path: dirPath = '.', recursive = false, pattern } = parameters;
+
+    try {
+      const projectRoot = pathModule.resolve(__dirname, '../..');
+      let fullPath: string;
+
+      if (pathModule.isAbsolute(dirPath)) {
+        fullPath = dirPath;
+      } else {
+        fullPath = pathModule.join(projectRoot, dirPath);
+      }
+
+      // Security: ensure path is within project
+      if (!fullPath.startsWith(projectRoot)) {
+        throw new BotError('Access denied: path is outside project directory', 'high', { dirPath });
+      }
+
+      const files: string[] = [];
+      const scanDir = (dir: string, prefix: string = '') => {
+        try {
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            // Skip hidden files and common excludes
+            if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'dist') {
+              continue;
+            }
+
+            const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+
+            if (entry.isDirectory()) {
+              if (recursive) {
+                scanDir(pathModule.join(dir, entry.name), relativePath);
+              } else {
+                files.push(relativePath + '/');
+              }
+            } else {
+              // Apply pattern filter if specified
+              if (pattern) {
+                const regex = new RegExp(pattern.replace(/\*/g, '.*').replace(/\?/g, '.'));
+                if (regex.test(entry.name)) {
+                  files.push(relativePath);
+                }
+              } else {
+                files.push(relativePath);
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore permission errors
+        }
+      };
+
+      scanDir(fullPath);
+
+      this.logger.info('Listed files successfully', { dirPath, count: files.length });
+
+      return {
+        success: true,
+        path: dirPath,
+        files,
+        count: files.length,
+        recursive,
+        pattern: pattern || null
+      };
+    } catch (error) {
+      if (error instanceof BotError) throw error;
+
+      this.logger.error('Failed to list files', error as Error, { dirPath });
+      throw new BotError(
+        `Failed to list files: ${(error as Error).message}`,
+        'medium',
+        { dirPath, error: (error as Error).message }
+      );
+    }
+  }
+
+  /**
+   * Search for pattern in files
+   */
+  private async grep(parameters: any): Promise<any> {
+    const fs = await import('fs');
+    const pathModule = await import('path');
+
+    const {
+      pattern,
+      path: searchPath = '.',
+      recursive = true,
+      case_sensitive = false,
+      max_results = 50
+    } = parameters;
+
+    try {
+      const projectRoot = pathModule.resolve(__dirname, '../..');
+      let fullPath: string;
+
+      if (pathModule.isAbsolute(searchPath)) {
+        fullPath = searchPath;
+      } else {
+        fullPath = pathModule.join(projectRoot, searchPath);
+      }
+
+      // Security: ensure path is within project
+      if (!fullPath.startsWith(projectRoot)) {
+        throw new BotError('Access denied: path is outside project directory', 'high', { searchPath });
+      }
+
+      const regex = new RegExp(pattern, case_sensitive ? 'g' : 'gi');
+      const results: Array<{ file: string; line: number; content: string }> = [];
+
+      const searchFile = (filePath: string, relativePath: string) => {
+        try {
+          const content = fs.readFileSync(filePath, 'utf-8');
+          const lines = content.split('\n');
+
+          for (let i = 0; i < lines.length && results.length < max_results; i++) {
+            if (regex.test(lines[i])) {
+              results.push({
+                file: relativePath,
+                line: i + 1,
+                content: lines[i].trim().substring(0, 200)
+              });
+            }
+            // Reset regex lastIndex for global flag
+            regex.lastIndex = 0;
+          }
+        } catch (e) {
+          // Ignore files that can't be read
+        }
+      };
+
+      const scanDir = (dir: string, prefix: string = '') => {
+        if (results.length >= max_results) return;
+
+        try {
+          const stat = fs.statSync(dir);
+
+          if (stat.isFile()) {
+            // Search single file
+            const relativePath = pathModule.relative(projectRoot, dir);
+            searchFile(dir, relativePath);
+          } else if (stat.isDirectory()) {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+            for (const entry of entries) {
+              if (results.length >= max_results) break;
+
+              // Skip hidden files and common excludes
+              if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'dist') {
+                continue;
+              }
+
+              const entryPath = pathModule.join(dir, entry.name);
+              const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+
+              if (entry.isDirectory() && recursive) {
+                scanDir(entryPath, relativePath);
+              } else if (entry.isFile()) {
+                // Only search text-like files
+                const ext = pathModule.extname(entry.name).toLowerCase();
+                const textExtensions = ['.ts', '.js', '.tsx', '.jsx', '.json', '.md', '.txt', '.yaml', '.yml', '.env', '.html', '.css', '.scss'];
+                if (textExtensions.includes(ext) || !ext) {
+                  searchFile(entryPath, relativePath);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+      };
+
+      scanDir(fullPath);
+
+      this.logger.info('Grep search completed', { pattern, searchPath, resultsCount: results.length });
+
+      return {
+        success: true,
+        pattern,
+        path: searchPath,
+        results,
+        count: results.length,
+        truncated: results.length >= max_results
+      };
+    } catch (error) {
+      if (error instanceof BotError) throw error;
+
+      this.logger.error('Failed to grep', error as Error, { pattern, searchPath });
+      throw new BotError(
+        `Failed to search: ${(error as Error).message}`,
+        'medium',
+        { pattern, searchPath, error: (error as Error).message }
+      );
+    }
+  }
+}
+
+// ============================================================================
+// WEB FETCH RESULT TYPE
+// ============================================================================
+
+interface WebFetchResult {
+  success: boolean;
+  url: string;
+  content: string;
+  contentType: string;
+  length: number;
+  truncated: boolean;
+  timestamp: string;
 }

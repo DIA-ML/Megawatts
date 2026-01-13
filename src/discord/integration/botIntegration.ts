@@ -353,7 +353,8 @@ export class DiscordBotIntegrationImpl implements DiscordBotIntegration {
         this.emotionalIntelligenceEngine!,
         this.emergencyStopHandler!,
         this.toolRegistry!,
-        this.logger
+        this.logger,
+        this.client  // Pass the Discord client for tool execution
       );
       this.logger.debug('DiscordConversationHandler initialized');
     }

@@ -406,7 +406,7 @@ class SelfEditingDiscordBot {
       // Initialize ToolRegistry for tool calling support
       const toolRegistryConfig: ToolRegistryConfig = {
         autoRegisterBuiltinTools: true,
-        enablePermissions: true,
+        enablePermissions: false, // Disabled - let Discord API handle permissions
         enableCategories: true,
         enableCaching: true,
         cacheTTL: 3600000, // 1 hour
