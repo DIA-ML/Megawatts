@@ -314,10 +314,20 @@ export class DiscordConversationHandler {
 
         // Re-send to AI with tool results for final response
         this.logger.info('[TOOL-CALL] Re-sending to AI with tool results');
-        const toolResultsMessage = toolResults
+
+        // Format successful results
+        const successfulResults = toolResults
           .filter(r => r.success)
           .map(r => `Tool ${r.toolName} result: ${JSON.stringify(r.result)}`)
           .join('\n');
+
+        // Format failed results with codeblocks for clarity
+        const failedResults = toolResults
+          .filter(r => !r.success)
+          .map(r => `Tool ${r.toolName} FAILED:\n\`\`\`\n${r.error?.message || 'Unknown error'}\nCode: ${r.error?.code || 'UNKNOWN'}\n\`\`\``)
+          .join('\n');
+
+        const toolResultsMessage = [successfulResults, failedResults].filter(Boolean).join('\n\n');
 
         // Add tool results message as user message
         conversationContext.messageHistory.push({
@@ -418,11 +428,13 @@ export class DiscordConversationHandler {
       return response;
     } catch (error) {
       this.logger.error('Failed to process Discord message', error as Error);
+      const errorMessage = (error as Error).message;
+      const errorStack = (error as Error).stack?.split('\n').slice(0, 5).join('\n') || 'No stack trace';
       return {
-        content: 'I apologize, but I encountered an error processing your message.',
+        content: `I apologize, but I encountered an error processing your message.\n\`\`\`\n${errorMessage}\n${errorStack}\n\`\`\``,
         tone: 'friendly',
         metadata: {
-          error: (error as Error).message,
+          error: errorMessage,
           conversationId: this.getConversationId(message),
         },
       };

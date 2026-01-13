@@ -1,11 +1,15 @@
 /**
  * AI Self-Editing Integration
- * 
+ *
  * This module implements AI-driven code modification suggestions,
  * natural language to code translation, and automated testing.
+ * Uses actual AI calls for all file discovery and code modification.
  */
 
-import { 
+import * as fs from 'fs';
+import * as path from 'path';
+import Anthropic from '@anthropic-ai/sdk';
+import {
   ConversationContext,
   ToolCall,
   ResponseGeneration,
@@ -13,6 +17,21 @@ import {
   SafetyAnalysis
 } from '../../../types/ai';
 import { Logger } from '../../../utils/logger';
+
+// Project root for file operations
+const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+const SYSTEM_PROMPT_PATH = path.join(PROJECT_ROOT, 'docs/system-prompt.md');
+
+// AI Client for self-editing operations
+let anthropicClient: Anthropic | null = null;
+function getAnthropicClient(): Anthropic {
+  if (!anthropicClient) {
+    anthropicClient = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY || ''
+    });
+  }
+  return anthropicClient;
+}
 
 // ============================================================================
 // SELF-EDITING INTEGRATION CLASS
@@ -48,7 +67,9 @@ export class SelfEditingIntegration {
 
       // Analyze the natural language request
       const analysis = await this.nlpProcessor.analyzeRequest(request, context);
-      
+      // Include original request in analysis for safety validation
+      analysis.request = request;
+
       // Validate safety of the request
       const safetyCheck = await this.validateModificationSafety(analysis, context);
       if (safetyCheck.blocked) {
@@ -371,26 +392,246 @@ export class SelfEditingIntegration {
     analysis: any,
     currentCode?: string
   ): Promise<any> {
+    const request = analysis.request || '';
+
+    // Determine target file based on request context using AI
+    const targetFile = await this.determineTargetFile(request);
+
     // Generate modification plan based on analysis
     return {
       type: 'modification',
       target: analysis.target,
+      targetFile,
+      request,
       changes: analysis.suggestedChanges || [],
       confidence: analysis.confidence,
       requiresTesting: true
     };
   }
 
+  /**
+   * Determine which file to modify based on the request using AI
+   */
+  private async determineTargetFile(request: string): Promise<string> {
+    const client = getAnthropicClient();
+
+    // Get list of available files for context
+    const availableFiles = this.getProjectFiles();
+
+    try {
+      const aiResponse = await client.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: `You are a file discovery assistant for a Discord bot project.
+Given a modification request, determine which file should be modified.
+
+Available files in the project:
+${availableFiles.map(f => `- ${f}`).join('\n')}
+
+Key files:
+- docs/system-prompt.md: Bot personality, behavior instructions, response format
+- src/config/*.ts: Configuration files
+- src/ai/*.ts: AI integration code
+- src/discord/*.ts: Discord bot code
+
+Respond with ONLY the file path, nothing else. If unsure, respond with: docs/system-prompt.md`,
+        messages: [
+          {
+            role: 'user',
+            content: `Modification request: ${request}
+
+Which file should be modified?`
+          }
+        ]
+      });
+
+      const responseText = aiResponse.content[0].type === 'text'
+        ? aiResponse.content[0].text.trim()
+        : '';
+
+      // Validate the response is an actual file path
+      const fullPath = path.join(PROJECT_ROOT, responseText);
+      if (fs.existsSync(fullPath)) {
+        this.logger.info('AI determined target file', { targetFile: fullPath, request });
+        return fullPath;
+      }
+
+      this.logger.warn('AI suggested non-existent file, using default', { suggested: responseText });
+      return SYSTEM_PROMPT_PATH;
+    } catch (error) {
+      this.logger.error('Failed to determine target file via AI', error as Error);
+      return SYSTEM_PROMPT_PATH;
+    }
+  }
+
+  /**
+   * Get list of project files for AI context
+   */
+  private getProjectFiles(): string[] {
+    const files: string[] = [];
+    const scanDir = (dir: string, prefix: string = '') => {
+      try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'dist') {
+            continue;
+          }
+          const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+          if (entry.isDirectory()) {
+            scanDir(path.join(dir, entry.name), relativePath);
+          } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.md') || entry.name.endsWith('.json'))) {
+            files.push(relativePath);
+          }
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+    };
+    scanDir(PROJECT_ROOT);
+    return files.slice(0, 100); // Limit to 100 files for context
+  }
+
   private async executeCodeModification(
     plan: any,
     currentCode?: string
   ): Promise<any> {
-    // Execute the code modification
-    return {
-      modifiedCode: currentCode ? this.applyChanges(currentCode, plan.changes) : plan.generatedCode,
-      changes: plan.changes || [],
-      success: true
-    };
+    const targetFile = plan.targetFile || SYSTEM_PROMPT_PATH;
+
+    try {
+      // Read the target file
+      const currentContent = fs.readFileSync(targetFile, 'utf-8');
+
+      // Use AI-like logic to determine and apply changes based on the request
+      const { modifiedContent, changes } = await this.applyAIGeneratedChanges(
+        currentContent,
+        plan.request,
+        targetFile
+      );
+
+      // Write the modified content back if changes were made
+      if (changes.length > 0) {
+        fs.writeFileSync(targetFile, modifiedContent, 'utf-8');
+        this.logger.info('File modified successfully', {
+          changesCount: changes.length,
+          filePath: targetFile
+        });
+      }
+
+      return {
+        modifiedCode: modifiedContent,
+        changes,
+        success: changes.length > 0,
+        filePath: targetFile
+      };
+    } catch (error) {
+      this.logger.error('Failed to modify file', error as Error, { targetFile });
+      throw error;
+    }
+  }
+
+  /**
+   * Apply AI-generated changes to file content using actual AI calls
+   */
+  private async applyAIGeneratedChanges(
+    currentContent: string,
+    request: string,
+    filePath: string
+  ): Promise<{ modifiedContent: string; changes: any[] }> {
+    const client = getAnthropicClient();
+
+    // Call AI to analyze the request and generate the modification
+    const aiResponse = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      system: `You are a code modification assistant. You will be given a file's current content and a modification request.
+
+Your task is to:
+1. Analyze the request to understand what change is needed
+2. Generate the modified file content
+3. Describe the changes made
+
+IMPORTANT: You must respond with ONLY valid JSON in this exact format:
+{
+  "modifiedContent": "the complete modified file content here",
+  "changes": [
+    {
+      "type": "replace|insert|delete",
+      "description": "human readable description of the change",
+      "before": "what was there before (if applicable)",
+      "after": "what is there now (if applicable)"
+    }
+  ],
+  "success": true
+}
+
+If the modification cannot be made or the request is unclear, respond with:
+{
+  "modifiedContent": "",
+  "changes": [],
+  "success": false,
+  "error": "explanation of why the modification cannot be made"
+}
+
+Do not include any text outside the JSON object.`,
+      messages: [
+        {
+          role: 'user',
+          content: `File path: ${filePath}
+
+Current file content:
+\`\`\`
+${currentContent}
+\`\`\`
+
+Modification request: ${request}
+
+Please generate the modified file content and describe the changes.`
+        }
+      ]
+    });
+
+    // Parse AI response
+    try {
+      const responseText = aiResponse.content[0].type === 'text'
+        ? aiResponse.content[0].text
+        : '';
+
+      // Extract JSON from response (handle potential markdown code blocks)
+      let jsonStr = responseText;
+      const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1].trim();
+      }
+
+      const parsed = JSON.parse(jsonStr);
+
+      if (parsed.success === false) {
+        this.logger.warn('AI could not make modification', { error: parsed.error });
+        return { modifiedContent: currentContent, changes: [] };
+      }
+
+      this.logger.info('AI generated modification', {
+        changesCount: parsed.changes?.length || 0,
+        filePath
+      });
+
+      return {
+        modifiedContent: parsed.modifiedContent || currentContent,
+        changes: parsed.changes || []
+      };
+    } catch (parseError) {
+      this.logger.error('Failed to parse AI response', parseError as Error);
+      return { modifiedContent: currentContent, changes: [] };
+    }
+  }
+
+  /**
+   * Find line number of a string in content
+   */
+  private findLineNumber(content: string, searchString: string): number {
+    const index = content.indexOf(searchString);
+    if (index === -1) return -1;
+    return content.substring(0, index).split('\n').length;
   }
 
   private async runAutomatedTests(code: string): Promise<any> {
